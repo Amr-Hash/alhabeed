@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, Tournament, unwrapList } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -193,11 +194,14 @@ export default function AdminTournamentsPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Link href={`/admin/tournaments/${t.id}`} className="btn-primary text-sm">
+                Manage →
+              </Link>
               <button type="button" className="btn-secondary text-sm" onClick={() => toggleActive(t)}>
                 {t.is_active ? "Deactivate" : "Activate"}
               </button>
               <button type="button" className="btn-secondary text-sm" onClick={() => startEdit(t)}>
-                Edit
+                Edit details
               </button>
               <button type="button" className="text-sm text-red-600 hover:underline" onClick={() => handleDelete(t.id)}>
                 Delete

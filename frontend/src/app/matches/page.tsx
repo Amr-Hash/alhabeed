@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { MatchCard } from "@/components/MatchCard";
 import { EmptyState } from "@/components/EmptyState";
+import { RequireTournament } from "@/components/RequireTournament";
 
 function MatchesContent() {
   const { user, token, loading: authLoading } = useAuth();
@@ -46,7 +47,7 @@ function MatchesContent() {
   }, [matches]);
 
   if (authLoading || !user) return <div>Loading...</div>;
-  if (!selectedTournament) return <div>Loading tournaments...</div>;
+  if (!selectedTournament) return null;
 
   const isTestCup = selectedTournament.name === "Demo Test Cup";
   const showGrouped = !matchdayFilter && matches.some((m) => m.matchday);
@@ -164,8 +165,10 @@ function FilterLink({
 
 export default function MatchesPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <MatchesContent />
-    </Suspense>
+    <RequireTournament>
+      <Suspense fallback={<div>Loading...</div>}>
+        <MatchesContent />
+      </Suspense>
+    </RequireTournament>
   );
 }

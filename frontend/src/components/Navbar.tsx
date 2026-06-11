@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { APP_NAME, APP_NAME_LATIN } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 import { AdminNavbar } from "@/components/AdminNavbar";
-import { TournamentSelect } from "@/components/TournamentSelect";
 import { isStaff } from "@/lib/staff";
+import { useTournament } from "@/lib/tournament";
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
+  const pathname = usePathname();
+  const { selectedTournament, clearSelectedTournament } = useTournament();
 
-  if (!loading && user && isStaff(user)) {
+  const showAdminNav =
+    Boolean(user && isStaff(user)) || (loading && pathname.startsWith("/admin"));
+
+  if (showAdminNav) {
     return <AdminNavbar />;
   }
+
+  const showAppNav = Boolean(user && selectedTournament);
 
   return (
     <nav className="border-b border-gray-200 bg-white">
@@ -25,22 +33,37 @@ export function Navbar() {
         <div className="flex flex-wrap items-center gap-4">
           {!loading && user ? (
             <>
-              <TournamentSelect />
-              <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
-                Dashboard
-              </Link>
-              <Link href="/groups" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
-                Groups
-              </Link>
-              <Link href="/tournament-groups" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
-                Groups & Teams
-              </Link>
-              <Link href="/matches" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
-                Matches
-              </Link>
-              <Link href="/leaderboards" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
-                Leaderboards
-              </Link>
+              {showAppNav ? (
+                <>
+                  <Link
+                    href="/"
+                    onClick={clearSelectedTournament}
+                    className="text-sm font-medium text-pitch-600 hover:underline"
+                  >
+                    ← Change tournament
+                  </Link>
+                  <span className="hidden rounded-full bg-pitch-50 px-2 py-0.5 text-xs font-medium text-pitch-800 sm:inline">
+                    {selectedTournament!.name} {selectedTournament!.year}
+                  </span>
+                  <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
+                    Dashboard
+                  </Link>
+                  <Link href="/groups" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
+                    Groups
+                  </Link>
+                  <Link href="/tournament-groups" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
+                    Groups & Teams
+                  </Link>
+                  <Link href="/matches" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
+                    Matches
+                  </Link>
+                  <Link href="/leaderboards" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
+                    Leaderboards
+                  </Link>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Select a tournament on the home page</span>
+              )}
               <span className="text-sm text-gray-500">{user.username}</span>
               <button onClick={logout} className="btn-secondary text-sm">
                 Logout

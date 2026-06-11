@@ -5,7 +5,7 @@ export function isStaff(user: User | null | undefined): boolean {
 }
 
 export function staffHomePath(user: User | null | undefined): string {
-  return isStaff(user) ? "/admin" : "/dashboard";
+  return isStaff(user) ? "/admin" : "/";
 }
 
 export function isStaffAllowedPath(pathname: string): boolean {

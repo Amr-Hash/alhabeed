@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { staffHomePath } from "@/lib/staff";
 
 export default function RegisterPage() {
   const { register, user } = useAuth();
@@ -15,7 +16,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   if (user) {
-    router.push("/dashboard");
+    router.push(staffHomePath(user));
     return null;
   }
 
@@ -25,7 +26,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(username, email, password);
-      router.push("/dashboard");
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

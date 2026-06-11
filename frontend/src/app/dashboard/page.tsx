@@ -8,32 +8,26 @@ import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { EmptyState } from "@/components/EmptyState";
 import { MatchCard } from "@/components/MatchCard";
+import { RequireTournament } from "@/components/RequireTournament";
 
-export default function DashboardPage() {
-  const { user, token, loading: authLoading } = useAuth();
+function DashboardContent() {
+  const { user, token } = useAuth();
   const { selectedTournament } = useTournament();
-  const router = useRouter();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
-  }, [authLoading, user, router]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token || !selectedTournament) return;
-    api.getDashboard(token, { tournament: selectedTournament.id })
+    setLoading(true);
+    setError("");
+    setDashboard(null);
+    api
+      .getDashboard(token, { tournament: selectedTournament.id })
       .then(setDashboard)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [token, selectedTournament]);
-
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
-        Loading...
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -42,13 +36,13 @@ export default function DashboardPage() {
           icon="⚠️"
           title="Could not load dashboard"
           description={error || "Something went wrong. Please try again in a moment."}
-          action={{ label: "Refresh page", href: "/dashboard" }}
+          action={{ label: "Back to home", href: "/" }}
         />
       </div>
     );
   }
 
-  if (!dashboard) {
+  if (loading || !dashboard) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
         Loading dashboard...
@@ -63,32 +57,22 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-3xl font-bold">
-        Welcome back, {user.username}
-      </h1>
+      <h1 className="mb-2 text-3xl font-bold">Welcome back, {user!.username}</h1>
       <p className="mb-6 text-gray-600">
-        {selectedTournament
-          ? `Overview for ${selectedTournament.name} (${selectedTournament.year}). Use the tournament menu in the navbar to switch competitions.`
-          : "Track your predictions, points, and upcoming matches."}
+        Overview for {selectedTournament!.name} ({selectedTournament!.year}).
       </p>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <div className="card bg-pitch-50">
           <p className="text-sm text-gray-600">Total Points</p>
-          <p className="text-3xl font-bold text-pitch-700">
-            {dashboard.total_points}
-          </p>
+          <p className="text-3xl font-bold text-pitch-700">{dashboard.total_points}</p>
           {dashboard.total_points === 0 && (
-            <p className="mt-1 text-xs text-gray-500">
-              Earn points with correct predictions
-            </p>
+            <p className="mt-1 text-xs text-gray-500">Earn points with correct predictions</p>
           )}
         </div>
         <div className="card">
           <p className="text-sm text-gray-600">Global Rank</p>
-          <p className="text-3xl font-bold">
-            {dashboard.current_rank ?? "—"}
-          </p>
+          <p className="text-3xl font-bold">{dashboard.current_rank ?? "—"}</p>
           {dashboard.current_rank == null && (
             <p className="mt-1 text-xs text-gray-500">No ranked scores yet</p>
           )}
@@ -195,5 +179,28 @@ export default function DashboardPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <RequireTournament>
+      <DashboardContent />
+    </RequireTournament>
   );
 }

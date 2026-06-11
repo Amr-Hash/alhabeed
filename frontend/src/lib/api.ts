@@ -1,7 +1,9 @@
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL !== undefined
     ? process.env.NEXT_PUBLIC_API_URL
-    : "http://localhost:8000";
+    : typeof window !== "undefined"
+      ? ""
+      : process.env.BACKEND_URL || "http://localhost:8000";
 
 export interface User {
   id: number;
@@ -165,10 +167,10 @@ export const api = {
 
   me: (token: string) => request<User>("/api/auth/me", {}, token),
 
-  getGroups: (token: string) => request<Group[]>("/api/groups/", {}, token),
+  getGroups: (token: string) => request<Group[]>("/api/groups", {}, token),
 
   createGroup: (token: string, data: { name: string; description?: string }) =>
-    request<Group>("/api/groups/", { method: "POST", body: JSON.stringify(data) }, token),
+    request<Group>("/api/groups", { method: "POST", body: JSON.stringify(data) }, token),
 
   joinGroup: (token: string, invite_code: string) =>
     request<Group>("/api/groups/join", {
@@ -177,7 +179,7 @@ export const api = {
     }, token),
 
   getTournaments: (token: string) =>
-    request<{ results?: Tournament[] } | Tournament[]>("/api/tournaments/", {}, token),
+    request<{ results?: Tournament[] } | Tournament[]>("/api/tournaments", {}, token),
 
   getCupGroups: (token: string, tournamentId: number) =>
     request<CupGroup[]>(`/api/tournaments/${tournamentId}/cup-groups`, {}, token),
@@ -213,7 +215,7 @@ export const api = {
     predicted_away_score: number;
     predicted_winner_team_id?: number;
   }) =>
-    request<Prediction>("/api/predictions/", { method: "POST", body: JSON.stringify(data) }, token),
+    request<Prediction>("/api/predictions", { method: "POST", body: JSON.stringify(data) }, token),
 
   updatePrediction: (token: string, id: number, data: Partial<{
     predicted_home_score: number;

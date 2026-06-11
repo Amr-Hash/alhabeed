@@ -60,7 +60,7 @@ class GroupTests(TestCase):
 
     def test_create_and_join_group(self):
         response = self.client.post(
-            "/api/groups/",
+            "/api/groups",
             {"name": "Test Group", "description": "A test group"},
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

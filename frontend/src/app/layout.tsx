@@ -20,8 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AuthProvider>
           <TournamentProvider>
+            <Navbar />
             <StaffGuard>
-              <Navbar />
               <main className="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 {children}
               </main>

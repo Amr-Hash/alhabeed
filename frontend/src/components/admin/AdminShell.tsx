@@ -11,7 +11,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-    else if (!loading && user && !isStaff(user)) router.push("/dashboard");
+    else if (!loading && user && !isStaff(user)) router.push("/");
   }, [loading, user, router]);
 
   if (loading || !user) return <div className="py-12 text-center text-gray-500">Loading...</div>;

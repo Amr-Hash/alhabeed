@@ -9,6 +9,7 @@ import {
 } from "react";
 import { api, Tournament, unwrapList } from "./api";
 import { useAuth } from "./auth";
+import { isStaff } from "./staff";
 
 const STORAGE_KEY = "selected_tournament_id";
 
@@ -16,50 +17,58 @@ interface TournamentContextType {
   tournaments: Tournament[];
   selectedTournament: Tournament | null;
   setSelectedTournamentId: (id: number) => void;
+  clearSelectedTournament: () => void;
   loading: boolean;
+  error: string | null;
+  reloadTournaments: () => void;
 }
 
 const TournamentContext = createContext<TournamentContextType | null>(null);
-
-function pickDefault(tournaments: Tournament[], savedId: string | undefined) {
-  const active = tournaments.filter((t) => t.is_active !== false);
-  const pool = active.length > 0 ? active : tournaments;
-  if (savedId) {
-    const saved = pool.find((t) => String(t.id) === savedId);
-    if (saved) return saved;
-  }
-  return (
-    pool.find((t) => t.name === "FIFA World Cup") ||
-    pool[0] ||
-    null
-  );
-}
 
 export function TournamentProvider({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadTournaments = useCallback(async (accessToken: string) => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.getTournaments(accessToken);
       const list = unwrapList(data);
       setTournaments(list);
-      const saved = localStorage.getItem(STORAGE_KEY) ?? undefined;
-      setSelectedTournament(pickDefault(list, saved));
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const savedTournament = list.find((t) => String(t.id) === saved);
+        if (savedTournament) {
+          setSelectedTournament(savedTournament);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setSelectedTournament(null);
+        }
+      } else {
+        setSelectedTournament(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load tournaments");
+      setTournaments([]);
+      setSelectedTournament(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (token && user) {
+    if (token && user && !isStaff(user)) {
       loadTournaments(token);
     } else {
       setTournaments([]);
       setSelectedTournament(null);
+      setError(null);
+      setLoading(false);
     }
   }, [token, user, loadTournaments]);
 
@@ -73,9 +82,26 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     [tournaments]
   );
 
+  const clearSelectedTournament = useCallback(() => {
+    setSelectedTournament(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  const reloadTournaments = useCallback(() => {
+    if (token) loadTournaments(token);
+  }, [token, loadTournaments]);
+
   return (
     <TournamentContext.Provider
-      value={{ tournaments, selectedTournament, setSelectedTournamentId, loading }}
+      value={{
+        tournaments,
+        selectedTournament,
+        setSelectedTournamentId,
+        clearSelectedTournament,
+        loading,
+        error,
+        reloadTournaments,
+      }}
     >
       {children}
     </TournamentContext.Provider>

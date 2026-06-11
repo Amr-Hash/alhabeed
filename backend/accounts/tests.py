@@ -113,5 +113,5 @@ class TournamentTests(TestCase):
         )
 
     def test_list_tournaments(self):
-        response = self.client.get("/api/tournaments/")
+        response = self.client.get("/api/tournaments")
         self.assertEqual(response.status_code, status.HTTP_200_OK)

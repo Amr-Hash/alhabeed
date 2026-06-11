@@ -6,6 +6,7 @@ import { api, Group, LeaderboardEntry, unwrapList } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { EmptyState } from "@/components/EmptyState";
+import { RequireTournament } from "@/components/RequireTournament";
 
 export default function LeaderboardsContent() {
   const { user, token, loading: authLoading } = useAuth();
@@ -40,12 +41,13 @@ export default function LeaderboardsContent() {
   if (authLoading || !user) return <div>Loading...</div>;
 
   return (
+    <RequireTournament>
     <div>
       <h1 className="mb-2 text-3xl font-bold">Leaderboards</h1>
       <p className="mb-6 text-gray-600">
         {selectedTournament
           ? `Rankings for ${selectedTournament.name} (${selectedTournament.year})`
-          : "Loading tournament..."}
+          : ""}
       </p>
 
       <div className="mb-6">
@@ -99,5 +101,6 @@ export default function LeaderboardsContent() {
         </div>
       )}
     </div>
+    </RequireTournament>
   );
 }

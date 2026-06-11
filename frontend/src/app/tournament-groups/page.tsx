@@ -7,24 +7,19 @@ import { api, CupGroup } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { EmptyState } from "@/components/EmptyState";
+import { RequireTournament } from "@/components/RequireTournament";
 
-export default function TournamentGroupsPage() {
-  const { user, token, loading: authLoading } = useAuth();
+function TournamentGroupsContent() {
+  const { token } = useAuth();
   const { selectedTournament } = useTournament();
-  const router = useRouter();
   const [cupGroups, setCupGroups] = useState<CupGroup[]>([]);
-
-  useEffect(() => {
-    if (!authLoading && !user) router.push("/login");
-  }, [authLoading, user, router]);
 
   useEffect(() => {
     if (!token || !selectedTournament) return;
     api.getCupGroups(token, selectedTournament.id).then(setCupGroups);
   }, [token, selectedTournament]);
 
-  if (authLoading || !user) return <div>Loading...</div>;
-  if (!selectedTournament) return <div>Loading tournaments...</div>;
+  if (!selectedTournament) return null;
 
   return (
     <div>
@@ -87,5 +82,22 @@ export default function TournamentGroupsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TournamentGroupsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user) return <div>Loading...</div>;
+
+  return (
+    <RequireTournament>
+      <TournamentGroupsContent />
+    </RequireTournament>
   );
 }

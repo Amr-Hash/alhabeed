@@ -6,17 +6,15 @@ import { APP_NAME } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 
 const LINKS = [
-  { href: "/admin", label: "Overview", exact: true },
-  { href: "/admin/matches", label: "Scores" },
-  { href: "/admin/tournaments", label: "Tournaments" },
-  { href: "/admin/stages", label: "Stages" },
-  { href: "/admin/cup-groups", label: "Groups" },
+  { href: "/admin", label: "Tournaments" },
   { href: "/admin/teams", label: "Teams" },
 ];
 
 export function AdminNavbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+
+  const tournamentDetailMatch = pathname.match(/^\/admin\/tournaments\/(\d+)/);
 
   return (
     <nav className="border-b border-amber-200 bg-amber-50">
@@ -30,9 +28,10 @@ export function AdminNavbar() {
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           {LINKS.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
+            const active =
+              item.href === "/admin"
+                ? pathname === "/admin" || pathname.startsWith("/admin/tournaments")
+                : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -47,6 +46,11 @@ export function AdminNavbar() {
               </Link>
             );
           })}
+          {tournamentDetailMatch && (
+            <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-amber-900 shadow-sm">
+              Managing tournament
+            </span>
+          )}
           <span className="ml-2 text-sm text-amber-700">{user?.username}</span>
           <button onClick={logout} className="btn-secondary border-amber-300 bg-white text-sm">
             Logout

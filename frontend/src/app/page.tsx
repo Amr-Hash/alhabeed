@@ -3,69 +3,73 @@
 import Link from "next/link";
 import { APP_NAME, APP_NAME_LATIN, APP_TAGLINE, APP_TAGLINE_EN } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
+import { TournamentPicker } from "@/components/TournamentPicker";
+import { isStaff } from "@/lib/staff";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user && isStaff(user)) {
+      router.replace("/admin");
+    }
+  }, [loading, user, router]);
 
   return (
-    <div className="flex flex-col items-center py-16 text-center">
-      <div className="mb-8 text-6xl">⚽</div>
+    <div className="flex flex-col items-center py-10 text-center sm:py-16">
+      <div className="mb-6 text-6xl">⚽</div>
       <h1 className="mb-2 text-4xl font-bold text-pitch-900 sm:text-5xl">
         {APP_NAME}
       </h1>
       <p className="mb-1 text-lg text-gray-500">{APP_NAME_LATIN}</p>
-      <p className="mb-8 max-w-2xl text-lg text-gray-600">
-        {APP_TAGLINE}
-      </p>
-      <p className="mb-8 max-w-2xl text-sm text-gray-500">
+      <p className="mb-4 max-w-2xl text-lg text-gray-600">{APP_TAGLINE}</p>
+      <p className="mb-10 max-w-2xl text-sm text-gray-500">
         {APP_TAGLINE_EN} Works with any tournament — World Cup, Champions League, and more.
       </p>
-      <div className="flex flex-wrap justify-center gap-4">
-        {loading ? (
-          <span className="text-gray-500">Loading...</span>
-        ) : user ? (
-          <>
-            <Link href="/dashboard" className="btn-primary px-8 py-3 text-lg">
-              Go to Dashboard
-            </Link>
-            <Link href="/matches" className="btn-secondary px-8 py-3 text-lg">
-              View Matches
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link href="/register" className="btn-primary px-8 py-3 text-lg">
-              Get Started
-            </Link>
-            <Link href="/login" className="btn-secondary px-8 py-3 text-lg">
-              Login
-            </Link>
-          </>
-        )}
-      </div>
-      <div className="mt-16 grid w-full max-w-4xl gap-6 sm:grid-cols-3">
-        <div className="card text-left">
-          <div className="mb-2 text-2xl">👥</div>
-          <h3 className="font-semibold">Create Groups</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Form private leagues with friends and compete on group leaderboards.
-          </p>
+
+      {loading ? (
+        <span className="text-gray-500">Loading...</span>
+      ) : user && !isStaff(user) ? (
+        <TournamentPicker />
+      ) : !user ? (
+        <div className="flex flex-wrap justify-center gap-4">
+          <Link href="/register" className="btn-primary px-8 py-3 text-lg">
+            Get Started
+          </Link>
+          <Link href="/login" className="btn-secondary px-8 py-3 text-lg">
+            Login
+          </Link>
         </div>
-        <div className="card text-left">
-          <div className="mb-2 text-2xl">🎯</div>
-          <h3 className="font-semibold">Predict Matches</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Submit score predictions stage by stage before the lock deadline.
-          </p>
+      ) : null}
+
+      {!user && (
+        <div className="mt-16 grid w-full max-w-4xl gap-6 sm:grid-cols-3">
+          <div className="card text-left">
+            <div className="mb-2 text-2xl">👥</div>
+            <h3 className="font-semibold">Create Groups</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Form private leagues with friends and compete on group leaderboards.
+            </p>
+          </div>
+          <div className="card text-left">
+            <div className="mb-2 text-2xl">🎯</div>
+            <h3 className="font-semibold">Predict Matches</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Submit score predictions stage by stage before the lock deadline.
+            </p>
+          </div>
+          <div className="card text-left">
+            <div className="mb-2 text-2xl">📊</div>
+            <h3 className="font-semibold">Track Rankings</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Earn up to 5 points per match and climb global and group leaderboards.
+            </p>
+          </div>
         </div>
-        <div className="card text-left">
-          <div className="mb-2 text-2xl">📊</div>
-          <h3 className="font-semibold">Track Rankings</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Earn up to 5 points per match and climb global and group leaderboards.
-          </p>
-        </div>
-      </div>
+      )}
 
       <section className="mt-16 w-full max-w-4xl text-left">
         <h2 className="mb-2 text-center text-2xl font-bold text-pitch-900">How Scoring Works</h2>

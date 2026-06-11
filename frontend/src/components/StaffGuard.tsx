@@ -10,12 +10,22 @@ export function StaffGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const staffBlocked =
+    !loading && Boolean(user && isStaff(user)) && !isStaffAllowedPath(pathname);
+
   useEffect(() => {
-    if (loading || !isStaff(user)) return;
-    if (!isStaffAllowedPath(pathname)) {
+    if (staffBlocked) {
       router.replace("/admin");
     }
-  }, [loading, user, pathname, router]);
+  }, [staffBlocked, router]);
+
+  if (staffBlocked) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-gray-500">
+        Redirecting to admin...
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
