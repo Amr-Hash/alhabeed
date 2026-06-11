@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -20,16 +20,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUser = useCallback(async (accessToken: string) => {
+  const loadUser = useCallback(async (accessToken: string): Promise<User | null> => {
     try {
       const me = await api.me(accessToken);
       setUser(me);
       setToken(accessToken);
+      return me;
     } catch {
       Cookies.remove("access_token");
       Cookies.remove("refresh_token");
       setUser(null);
       setToken(null);
+      return null;
     }
   }, []);
 
@@ -46,7 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tokens = await api.login(email, password);
     Cookies.set("access_token", tokens.access, { expires: 1 });
     Cookies.set("refresh_token", tokens.refresh, { expires: 7 });
-    await loadUser(tokens.access);
+    const me = await loadUser(tokens.access);
+    if (!me) throw new Error("Login failed");
+    return me;
   };
 
   const register = async (username: string, email: string, password: string) => {

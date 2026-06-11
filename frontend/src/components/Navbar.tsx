@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { APP_NAME, APP_NAME_LATIN } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
+import { AdminNavbar } from "@/components/AdminNavbar";
 import { TournamentSelect } from "@/components/TournamentSelect";
+import { isStaff } from "@/lib/staff";
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
+
+  if (!loading && user && isStaff(user)) {
+    return <AdminNavbar />;
+  }
 
   return (
     <nav className="border-b border-gray-200 bg-white">
@@ -35,11 +41,6 @@ export function Navbar() {
               <Link href="/leaderboards" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
                 Leaderboards
               </Link>
-              {(user.is_staff ?? false) && (
-                <Link href="/admin" className="text-sm font-medium text-amber-700 hover:text-amber-800">
-                  Admin
-                </Link>
-              )}
               <span className="text-sm text-gray-500">{user.username}</span>
               <button onClick={logout} className="btn-secondary text-sm">
                 Logout
