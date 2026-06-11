@@ -44,6 +44,13 @@ Stage progression rules apply in order: predictions for Round of 32 must be comp
 | **Backend API** | https://pitch-predictions-api.vercel.app |
 | **Django Admin** | https://pitch-predictions-api.vercel.app/admin/ |
 
+**Important:** After creating Vercel projects, disable **Deployment Protection → Vercel Authentication** so public users can access `*.vercel.app` URLs without a Vercel account:
+
+```bash
+npx vercel project protection disable pitch-predictions --sso
+npx vercel project protection disable pitch-predictions-api --sso
+```
+
 Legacy URL `/world-cup-groups` redirects to `/tournament-groups`.
 
 The frontend proxies `/api/*` to the backend using Next.js rewrites. Use the backend URL directly for Django admin (sessions and CSRF do not work reliably through the frontend proxy).
