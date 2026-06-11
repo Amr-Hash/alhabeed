@@ -84,6 +84,12 @@ export function MatchCard({ match, prediction, showPredictLink, showResultLink }
           {t("yourPrediction")}:{" "}
           <span className="font-semibold">
             {prediction.predicted_home_score}-{prediction.predicted_away_score}
+            {prediction.predicted_winner_team
+              ? ` (${teamLabel(prediction.predicted_winner_team, locale)} ${t("advances")})`
+              : match.is_knockout &&
+                prediction.predicted_home_score === prediction.predicted_away_score
+                ? ` (${t("noAdvancingPickSaved")})`
+                : ""}
           </span>
           {(prediction.points_awarded > 0 || isFinished) && (
             <span className="ml-2 text-pitch-600">

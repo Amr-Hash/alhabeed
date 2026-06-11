@@ -120,6 +120,9 @@ export const messages = {
     point: "point",
     pointsPlural: "points",
     backToMatches: "Back to matches",
+    advances: "advances",
+    noAdvancingPickSaved: "no advancing team saved",
+    recalculatePoints: "Recalculate points",
     knockoutBonus: "Knockout advancing team:",
     knockoutBonusDesc:
       "For knockout matches, if you predict a tied score you must pick which team advances (e.g. after extra time and penalties). A correct pick earns 1 point — even when your score prediction was wrong — and stacks on top of any score points you earned.",
@@ -267,6 +270,9 @@ export const messages = {
     point: "نقطة",
     pointsPlural: "نقاط",
     backToMatches: "العودة للمباريات",
+    advances: "يتأهل",
+    noAdvancingPickSaved: "لم يُحفظ الفريق المتأهل",
+    recalculatePoints: "إعادة احتساب النقاط",
     knockoutBonus: "الفريق المتأهل في الأدوار الإقصائية:",
     knockoutBonusDesc:
       "في المباريات الإقصائية، إذا توقعت تعادلاً يجب اختيار الفريق المتأهل (مثلاً بعد الوقت الإضافي وركلات الترجيح). التوقع الصحيح يمنحك نقطة واحدة — حتى لو كان توقع النتيجة خاطئاً — وتُضاف إلى نقاط النتيجة إن حصلت عليها.",

@@ -184,5 +184,10 @@ class AdminMatchViewSet(viewsets.ModelViewSet):
                 {"detail": "Match must be finished to recalculate scores."},
                 status=400,
             )
-        count = recalculate_match_scores(match)
-        return Response({"detail": f"Recalculated {count} prediction(s)."})
+        results = recalculate_match_scores(match)
+        return Response(
+            {
+                "detail": f"Recalculated {len(results)} prediction(s).",
+                "predictions": results,
+            }
+        )

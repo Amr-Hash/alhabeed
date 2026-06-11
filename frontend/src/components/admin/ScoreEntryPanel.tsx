@@ -43,12 +43,15 @@ export function ScoreEntryPanel({
     e.preventDefault();
     setSaving(true);
     setError("");
+    const home = draft.home_score === "" ? null : Number(draft.home_score);
+    const away = draft.away_score === "" ? null : Number(draft.away_score);
+    const tied = home !== null && away !== null && home === away;
     try {
       await api.adminUpdateMatch(token, match.id, {
         status: "finished",
-        home_score: draft.home_score === "" ? null : Number(draft.home_score),
-        away_score: draft.away_score === "" ? null : Number(draft.away_score),
-        winner_team: draft.winner_team ? Number(draft.winner_team) : null,
+        home_score: home,
+        away_score: away,
+        winner_team: tied && draft.winner_team ? Number(draft.winner_team) : null,
       });
       await api.adminRecalculateMatch(token, match.id);
       onSaved();

@@ -67,7 +67,8 @@ def calculate_prediction_points(prediction, match):
     elif _get_outcome(pred_home, pred_away) == _get_outcome(actual_home, actual_away):
         breakdown.outcome_points = 1
 
-    if match.is_knockout:
+    is_knockout = match.stage.stage_type == Stage.StageType.KNOCKOUT
+    if is_knockout:
         advancing_team_id = _get_advancing_team_id(match)
         if (
             prediction.predicted_winner_team_id
@@ -82,12 +83,25 @@ def calculate_prediction_points(prediction, match):
 def recalculate_match_scores(match):
     from predictions.models import Prediction
 
-    match = Match.objects.select_related("stage").get(pk=match.pk)
-    predictions = Prediction.objects.filter(match=match)
-    count = 0
+    match = Match.objects.select_related(
+        "stage", "home_team", "away_team", "winner_team"
+    ).get(pk=match.pk)
+    predictions = Prediction.objects.filter(match=match).select_related(
+        "user", "predicted_winner_team"
+    )
+    results = []
     for prediction in predictions:
         breakdown = calculate_prediction_points(prediction, match)
         prediction.points_awarded = breakdown.total_points
         prediction.save(update_fields=["points_awarded"])
-        count += 1
-    return count
+        results.append(
+            {
+                "prediction_id": prediction.id,
+                "user_id": prediction.user_id,
+                "username": prediction.user.username,
+                "predicted_score": f"{prediction.predicted_home_score}-{prediction.predicted_away_score}",
+                "predicted_advancing_team_id": prediction.predicted_winner_team_id,
+                "points_awarded": breakdown.total_points,
+            }
+        )
+    return results

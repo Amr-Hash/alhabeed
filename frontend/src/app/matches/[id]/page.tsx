@@ -66,13 +66,17 @@ export default function MatchDetailPage() {
       setError("Please enter both scores.");
       return;
     }
+    if (showWinnerSelect && !winnerId) {
+      setError("Please select the team that advances.");
+      return;
+    }
     setError("");
     setSuccess("");
     const payload = {
       match: match.id,
       predicted_home_score: Number(homeScore),
       predicted_away_score: Number(awayScore),
-      ...(showWinnerSelect && winnerId ? { predicted_winner_team_id: Number(winnerId) } : {}),
+      predicted_winner_team_id: showWinnerSelect ? Number(winnerId) : null,
     };
     try {
       if (prediction) {
@@ -206,9 +210,16 @@ export default function MatchDetailPage() {
           <h2 className="mb-3 font-semibold">{t("yourPrediction")}</h2>
           <div className="text-sm">
             {prediction.predicted_home_score}-{prediction.predicted_away_score}
-            {prediction.predicted_winner_team && ` (${prediction.predicted_winner_team.name} advances)`}
-            {prediction.points_awarded > 0 && (
-              <span className="ml-2 text-pitch-600">+{prediction.points_awarded} {t("points")}</span>
+            {prediction.predicted_winner_team
+              ? ` (${prediction.predicted_winner_team.name} ${t("advances")})`
+              : match.is_knockout &&
+                prediction.predicted_home_score === prediction.predicted_away_score &&
+                ` (${t("noAdvancingPickSaved")})`}
+            {isFinished && (
+              <span className="ml-2 text-pitch-600">
+                {prediction.points_awarded > 0 ? "+" : ""}
+                {prediction.points_awarded} {t("points")}
+              </span>
             )}
           </div>
         </div>

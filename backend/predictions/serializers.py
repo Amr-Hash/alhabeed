@@ -51,7 +51,10 @@ class PredictionSerializer(serializers.ModelSerializer):
             "predicted_away_score",
             self.instance.predicted_away_score if self.instance else None,
         )
-        pred_winner = attrs.get("predicted_winner_team")
+        pred_winner = attrs.get(
+            "predicted_winner_team",
+            self.instance.predicted_winner_team if self.instance else None,
+        )
 
         validate_prediction_lock(match)
         validate_stage_progression(request.user, match)
@@ -97,11 +100,24 @@ class PredictionCreateUpdateSerializer(serializers.ModelSerializer):
             "predicted_away_score",
             self.instance.predicted_away_score if self.instance else None,
         )
-        pred_winner = attrs.get("predicted_winner_team")
+        pred_winner = attrs.get(
+            "predicted_winner_team",
+            self.instance.predicted_winner_team if self.instance else None,
+        )
 
         validate_prediction_lock(match)
         validate_stage_progression(request.user, match)
         validate_knockout_winner(match, pred_home, pred_away, pred_winner)
+
+        if (
+            match
+            and match.is_knockout
+            and pred_home is not None
+            and pred_away is not None
+            and pred_home != pred_away
+        ):
+            attrs["predicted_winner_team"] = None
+
         return attrs
 
     def create(self, validated_data):

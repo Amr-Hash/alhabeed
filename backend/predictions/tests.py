@@ -245,6 +245,40 @@ class ScoringIntegrationTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.admin)
 
+    def test_admin_finish_knockout_awards_advancing_team_point(self):
+        knockout_stage = Stage.objects.create(
+            tournament=self.tournament,
+            name="Final",
+            order=2,
+            stage_type=Stage.StageType.KNOCKOUT,
+        )
+        knockout_match = Match.objects.create(
+            tournament=self.tournament,
+            stage=knockout_stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now() + timedelta(days=2),
+        )
+        prediction = Prediction.objects.create(
+            user=self.user,
+            match=knockout_match,
+            predicted_home_score=0,
+            predicted_away_score=0,
+            predicted_winner_team=self.home,
+        )
+        response = self.client.patch(
+            f"/api/tournaments/admin/matches/{knockout_match.id}",
+            {
+                "status": Match.Status.FINISHED,
+                "home_score": 5,
+                "away_score": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        prediction.refresh_from_db()
+        self.assertEqual(prediction.points_awarded, 1)
+
     def test_admin_finish_match_awards_outcome_point(self):
         response = self.client.patch(
             f"/api/tournaments/admin/matches/{self.match.id}",

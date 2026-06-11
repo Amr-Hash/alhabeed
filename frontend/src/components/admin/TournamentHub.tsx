@@ -75,7 +75,18 @@ function AdminMatchCard({
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const hasScore = match.home_score !== null && match.away_score !== null;
+
+  async function handleRecalculate() {
+    setRecalculating(true);
+    try {
+      await api.adminRecalculateMatch(token, match.id);
+      onSaved();
+    } finally {
+      setRecalculating(false);
+    }
+  }
 
   return (
     <div className="card">
@@ -100,6 +111,16 @@ function AdminMatchCard({
           </div>
         </div>
         <div className="flex gap-2">
+          {match.status === "finished" && (
+            <button
+              type="button"
+              className="btn-secondary text-sm"
+              onClick={handleRecalculate}
+              disabled={recalculating}
+            >
+              {recalculating ? "Recalculating…" : "Recalculate points"}
+            </button>
+          )}
           <button
             type="button"
             className={hasScore ? "btn-secondary text-sm" : "btn-primary text-sm"}
