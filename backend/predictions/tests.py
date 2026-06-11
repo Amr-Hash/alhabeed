@@ -169,6 +169,18 @@ class ScoringEngineTests(TestCase):
         self.assertEqual(result.winner_bonus_points, 1)
         self.assertEqual(result.total_points, 1)
 
+    def test_knockout_winner_point_on_draw_prediction_vs_decisive_result(self):
+        match = self._make_match(5, 2, knockout=True)
+        pred = self._make_prediction(match, 0, 0, winner=self.home)
+        result = calculate_prediction_points(pred, match)
+        self.assertEqual(result.total_points, 1)
+
+    def test_knockout_advancing_team_from_score_not_stale_winner_field(self):
+        match = self._make_match(5, 2, knockout=True, winner=self.away)
+        pred = self._make_prediction(match, 0, 0, winner=self.home)
+        result = calculate_prediction_points(pred, match)
+        self.assertEqual(result.total_points, 1)
+
     def test_knockout_wrong_advancing_team_on_tie_exact_score(self):
         match = self._make_match(1, 1, knockout=True, winner=self.home)
         pred = self._make_prediction(match, 1, 1, winner=self.away)

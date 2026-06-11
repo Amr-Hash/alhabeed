@@ -120,6 +120,16 @@ def _validate_match_result(instance, attrs):
             raise serializers.ValidationError(
                 {"winner_team": "Winner is required for tied knockout matches."}
             )
+
+    # Clear penalty-winner when the match did not end in a draw.
+    if (
+        instance.is_knockout
+        and home_score is not None
+        and away_score is not None
+        and home_score != away_score
+    ):
+        attrs["winner_team"] = None
+
     return attrs
 
 

@@ -30,15 +30,14 @@ def _get_outcome(home_score, away_score):
 
 def _get_advancing_team_id(match):
     """Team that advances from a finished knockout match."""
-    if match.winner_team_id:
-        return match.winner_team_id
     if match.home_score is None or match.away_score is None:
         return None
     if match.home_score > match.away_score:
         return match.home_team_id
     if match.away_score > match.home_score:
         return match.away_team_id
-    return None
+    # Tied after extra time — advancement is decided by penalties.
+    return match.winner_team_id
 
 
 def calculate_prediction_points(prediction, match):
