@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, Group, unwrapList } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 export default function GroupsContent() {
   const { user, token, loading: authLoading } = useAuth();
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -110,20 +112,23 @@ export default function GroupsContent() {
       <h2 className="mb-4 text-xl font-semibold">Your Groups</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {groups.map((g) => (
-          <div key={g.id} className="card">
+          <Link key={g.id} href={`/groups/${g.id}`} className="card block transition hover:border-pitch-200">
             <h3 className="font-semibold">{g.name}</h3>
             {g.description && <p className="mt-1 text-sm text-gray-600">{g.description}</p>}
             <p className="mt-2 text-sm">
-              <span className="text-gray-500">Invite code:</span>{" "}
+              <span className="text-gray-500">{t("inviteCode")}:</span>{" "}
               <code className="rounded bg-gray-100 px-2 py-0.5">{g.invite_code}</code>
             </p>
-            <p className="text-sm text-gray-500">{g.member_count} members</p>
+            <p className="text-sm text-gray-500">
+              {t("groupMembersCount", { count: g.member_count })}
+            </p>
             {g.is_admin && (
               <span className="mt-2 inline-block rounded bg-gold-400/20 px-2 py-0.5 text-xs font-medium text-gold-500">
-                Admin
+                {t("groupAdmin")}
               </span>
             )}
-          </div>
+            <p className="mt-3 text-sm font-medium text-pitch-600">{t("viewGroup")} →</p>
+          </Link>
         ))}
       </div>
     </div>

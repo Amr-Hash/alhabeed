@@ -478,6 +478,80 @@ class StageProgressionTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 
+class GroupMemberViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="gmember", email="gmember@example.com", password="pass12345"
+        )
+        self.other = User.objects.create_user(
+            username="gother", email="gother@example.com", password="pass12345"
+        )
+        self.outsider = User.objects.create_user(
+            username="goutsider", email="outsider@example.com", password="pass12345"
+        )
+        self.group = Group.objects.create(name="Friends", created_by=self.user)
+        GroupMember.objects.create(
+            group=self.group, user=self.user, role=GroupMember.Role.ADMIN
+        )
+        GroupMember.objects.create(group=self.group, user=self.other)
+        self.home = Team.objects.create(name="Home", code="GHM")
+        self.away = Team.objects.create(name="Away", code="GAW")
+        self.tournament = Tournament.objects.create(
+            name="Cup",
+            year=2026,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+        )
+        self.stage = Stage.objects.create(
+            tournament=self.tournament, name="Day 1", order=1,
+        )
+        self.match = Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now() + timedelta(days=2),
+        )
+        Prediction.objects.create(
+            user=self.user,
+            match=self.match,
+            predicted_home_score=2,
+            predicted_away_score=1,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_group_members_visible_to_member(self):
+        response = self.client.get(f"/api/groups/{self.group.id}/members")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        usernames = {row["username"] for row in response.data}
+        self.assertEqual(usernames, {"gmember", "gother"})
+
+    def test_group_members_forbidden_for_non_member(self):
+        self.client.force_authenticate(user=self.outsider)
+        response = self.client.get(f"/api/groups/{self.group.id}/members")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_group_predictions_for_tournament(self):
+        response = self.client.get(
+            f"/api/groups/{self.group.id}/predictions",
+            {"tournament": self.tournament.id},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["members"]), 2)
+        self.assertEqual(len(response.data["matches"]), 1)
+        preds = response.data["matches"][0]["predictions"]
+        self.assertEqual(len(preds), 2)
+        by_user = {row["username"]: row for row in preds}
+        self.assertEqual(by_user["gmember"]["predicted_home_score"], 2)
+        self.assertIsNone(by_user["gother"]["predicted_home_score"])
+
+    def test_group_predictions_require_tournament(self):
+        response = self.client.get(f"/api/groups/{self.group.id}/predictions")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class LeaderboardTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(

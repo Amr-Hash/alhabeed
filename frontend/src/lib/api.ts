@@ -27,6 +27,35 @@ export interface Group {
   is_admin: boolean;
 }
 
+export interface GroupMember {
+  id: number;
+  user: number;
+  username: string;
+  email: string;
+  role: "admin" | "member";
+  joined_at: string;
+}
+
+export interface GroupMemberMatchPrediction {
+  user_id: number;
+  username: string;
+  predicted_home_score: number | null;
+  predicted_away_score: number | null;
+  predicted_winner_team: Team | null;
+  points_awarded: number;
+}
+
+export interface GroupMatchPredictions {
+  match: Match;
+  predictions: GroupMemberMatchPrediction[];
+}
+
+export interface GroupPredictionsResponse {
+  group: Group;
+  members: GroupMember[];
+  matches: GroupMatchPredictions[];
+}
+
 export interface Team {
   id: number;
   name: string;
@@ -175,6 +204,16 @@ export const api = {
 
   createGroup: (token: string, data: { name: string; description?: string }) =>
     request<Group>("/api/groups", { method: "POST", body: JSON.stringify(data) }, token),
+
+  getGroupMembers: (token: string, groupId: number) =>
+    request<GroupMember[]>(`/api/groups/${groupId}/members`, {}, token),
+
+  getGroupPredictions: (token: string, groupId: number, tournamentId: number) =>
+    request<GroupPredictionsResponse>(
+      `/api/groups/${groupId}/predictions?tournament=${tournamentId}`,
+      {},
+      token
+    ),
 
   joinGroup: (token: string, invite_code: string) =>
     request<Group>("/api/groups/join", {

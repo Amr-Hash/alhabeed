@@ -1,9 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+
+from predictions.models import Prediction
+from tournaments.models import Match
+from tournaments.serializers import MatchSerializer
 
 from .models import Group, GroupMember
 from .serializers import (
@@ -120,8 +124,93 @@ class GroupViewSet(viewsets.ModelViewSet):
         group = self.get_object()
         if not group.memberships.filter(user=request.user).exists():
             raise PermissionDenied("You are not a member of this group.")
-        members = group.memberships.select_related("user")
+        members = group.memberships.select_related("user").order_by("joined_at")
         return Response(GroupMemberSerializer(members, many=True).data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="predictions",
+    )
+    def predictions(self, request, pk=None):
+        group = self.get_object()
+        if not group.memberships.filter(user=request.user).exists():
+            raise PermissionDenied("You are not a member of this group.")
+
+        tournament_id = request.query_params.get("tournament")
+        if not tournament_id:
+            raise ValidationError({"tournament": "This query parameter is required."})
+
+        members = list(
+            group.memberships.select_related("user").order_by("joined_at")
+        )
+        member_ids = [m.user_id for m in members]
+
+        predictions = Prediction.objects.filter(
+            user_id__in=member_ids,
+            match__tournament_id=tournament_id,
+        ).select_related("user", "predicted_winner_team")
+        pred_map = {(p.user_id, p.match_id): p for p in predictions}
+
+        matches = (
+            Match.objects.filter(tournament_id=tournament_id)
+            .select_related(
+                "home_team", "away_team", "winner_team", "stage", "cup_group"
+            )
+            .order_by("kickoff_time")
+        )
+
+        matches_data = []
+        for match in matches:
+            match_predictions = []
+            for membership in members:
+                pred = pred_map.get((membership.user_id, match.id))
+                if pred:
+                    match_predictions.append(
+                        {
+                            "user_id": membership.user_id,
+                            "username": membership.user.username,
+                            "predicted_home_score": pred.predicted_home_score,
+                            "predicted_away_score": pred.predicted_away_score,
+                            "predicted_winner_team": (
+                                {
+                                    "id": pred.predicted_winner_team.id,
+                                    "name": pred.predicted_winner_team.name,
+                                    "name_ar": pred.predicted_winner_team.name_ar,
+                                    "code": pred.predicted_winner_team.code,
+                                    "flag_url": pred.predicted_winner_team.flag_url,
+                                }
+                                if pred.predicted_winner_team
+                                else None
+                            ),
+                            "points_awarded": pred.points_awarded,
+                        }
+                    )
+                else:
+                    match_predictions.append(
+                        {
+                            "user_id": membership.user_id,
+                            "username": membership.user.username,
+                            "predicted_home_score": None,
+                            "predicted_away_score": None,
+                            "predicted_winner_team": None,
+                            "points_awarded": 0,
+                        }
+                    )
+            matches_data.append(
+                {
+                    "match": MatchSerializer(match, context={"request": request}).data,
+                    "predictions": match_predictions,
+                }
+            )
+
+        return Response(
+            {
+                "group": GroupSerializer(group, context={"request": request}).data,
+                "members": GroupMemberSerializer(members, many=True).data,
+                "matches": matches_data,
+            }
+        )
 
     @action(
         detail=True,
