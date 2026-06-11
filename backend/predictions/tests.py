@@ -112,9 +112,8 @@ class ScoringEngineTests(TestCase):
         user = User.objects.create_user(
             username="preduser", email="pred@example.com", password="pass"
         )
-        group = Group.objects.create(name="G", created_by=user)
         return Prediction.objects.create(
-            user=user, group=group, match=match,
+            user=user, match=match,
             predicted_home_score=home, predicted_away_score=away,
             predicted_winner_team=winner,
         )
@@ -196,7 +195,6 @@ class PredictionLockTests(TestCase):
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": match.id,
                 "predicted_home_score": 1,
                 "predicted_away_score": 0,
@@ -258,7 +256,6 @@ class MatchdayLockTests(TestCase):
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": self.md2_match.id,
                 "predicted_home_score": 1,
                 "predicted_away_score": 0,
@@ -276,7 +273,6 @@ class MatchdayLockTests(TestCase):
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": self.md2_match.id,
                 "predicted_home_score": 2,
                 "predicted_away_score": 1,
@@ -326,7 +322,6 @@ class StageProgressionTests(TestCase):
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": self.match2.id,
                 "predicted_home_score": 1,
                 "predicted_away_score": 0,
@@ -337,13 +332,12 @@ class StageProgressionTests(TestCase):
 
     def test_stage_progression_allows_after_completion(self):
         Prediction.objects.create(
-            user=self.user, group=self.group, match=self.match1,
+            user=self.user, match=self.match1,
             predicted_home_score=1, predicted_away_score=0,
         )
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": self.match2.id,
                 "predicted_home_score": 2,
                 "predicted_away_score": 1,
@@ -379,7 +373,7 @@ class LeaderboardTests(TestCase):
             home_score=2, away_score=1,
         )
         Prediction.objects.create(
-            user=self.user, group=self.group, match=self.match,
+            user=self.user, match=self.match,
             predicted_home_score=2, predicted_away_score=1,
             points_awarded=5,
         )

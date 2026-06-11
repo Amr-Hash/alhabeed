@@ -16,7 +16,6 @@ class PredictionSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "user",
-            "group",
             "match",
             "match_detail",
             "predicted_home_score",
@@ -37,14 +36,12 @@ class PredictionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         from .services.validators import (
-            validate_group_membership,
             validate_knockout_winner,
             validate_prediction_lock,
             validate_stage_progression,
         )
 
         request = self.context["request"]
-        group = attrs.get("group") or (self.instance.group if self.instance else None)
         match = attrs.get("match") or (self.instance.match if self.instance else None)
         pred_home = attrs.get(
             "predicted_home_score",
@@ -56,9 +53,8 @@ class PredictionSerializer(serializers.ModelSerializer):
         )
         pred_winner = attrs.get("predicted_winner_team")
 
-        validate_group_membership(request.user, group)
         validate_prediction_lock(match)
-        validate_stage_progression(request.user, group, match)
+        validate_stage_progression(request.user, match)
         validate_knockout_winner(match, pred_home, pred_away, pred_winner)
         return attrs
 
@@ -78,7 +74,6 @@ class PredictionCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Prediction
         fields = (
-            "group",
             "match",
             "predicted_home_score",
             "predicted_away_score",
@@ -87,14 +82,12 @@ class PredictionCreateUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         from .services.validators import (
-            validate_group_membership,
             validate_knockout_winner,
             validate_prediction_lock,
             validate_stage_progression,
         )
 
         request = self.context["request"]
-        group = attrs.get("group") or (self.instance.group if self.instance else None)
         match = attrs.get("match") or (self.instance.match if self.instance else None)
         pred_home = attrs.get(
             "predicted_home_score",
@@ -106,9 +99,8 @@ class PredictionCreateUpdateSerializer(serializers.ModelSerializer):
         )
         pred_winner = attrs.get("predicted_winner_team")
 
-        validate_group_membership(request.user, group)
         validate_prediction_lock(match)
-        validate_stage_progression(request.user, group, match)
+        validate_stage_progression(request.user, match)
         validate_knockout_winner(match, pred_home, pred_away, pred_winner)
         return attrs
 

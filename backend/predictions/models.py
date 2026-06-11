@@ -8,11 +8,6 @@ class Prediction(models.Model):
         on_delete=models.CASCADE,
         related_name="predictions",
     )
-    group = models.ForeignKey(
-        "groups.Group",
-        on_delete=models.CASCADE,
-        related_name="predictions",
-    )
     match = models.ForeignKey(
         "tournaments.Match",
         on_delete=models.CASCADE,
@@ -32,14 +27,12 @@ class Prediction(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("user", "group", "match")
+        unique_together = ("user", "match")
         indexes = [
-            models.Index(fields=["user", "group"]),
-            models.Index(fields=["group", "match"]),
+            models.Index(fields=["user", "match"]),
             models.Index(fields=["match"]),
             models.Index(fields=["user", "points_awarded"]),
-            models.Index(fields=["group", "user", "points_awarded"]),
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.match} ({self.group.name})"
+        return f"{self.user.username} - {self.match}"

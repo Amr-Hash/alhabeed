@@ -1,12 +1,11 @@
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from rest_framework import permissions, viewsets
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from groups.models import Group, GroupMember
-from tournaments.models import Match, Tournament
+from tournaments.models import Match
 
 from .models import Prediction
 from .serializers import PredictionCreateUpdateSerializer, PredictionSerializer
@@ -22,14 +21,10 @@ class PredictionViewSet(viewsets.ModelViewSet):
             "match__home_team",
             "match__away_team",
             "match__stage",
-            "group",
             "predicted_winner_team",
         )
-        group_id = self.request.query_params.get("group")
         match_id = self.request.query_params.get("match")
         tournament_id = self.request.query_params.get("tournament")
-        if group_id:
-            qs = qs.filter(group_id=group_id)
         if match_id:
             qs = qs.filter(match_id=match_id)
         if tournament_id:
@@ -62,7 +57,10 @@ class GroupLeaderboardView(APIView):
             return Response({"detail": "Not a group member."}, status=403)
 
         tournament_id = request.query_params.get("tournament")
-        predictions_qs = Prediction.objects.filter(group=group)
+        member_ids = GroupMember.objects.filter(group=group).values_list(
+            "user_id", flat=True
+        )
+        predictions_qs = Prediction.objects.filter(user_id__in=member_ids)
         if tournament_id:
             predictions_qs = predictions_qs.filter(match__tournament_id=tournament_id)
 
@@ -136,7 +134,6 @@ class DashboardView(APIView):
     def get(self, request):
         user = request.user
         tournament_id = request.query_params.get("tournament")
-        group_id = request.query_params.get("group")
 
         groups = Group.objects.filter(memberships__user=user).distinct()
         groups_data = [
@@ -153,8 +150,6 @@ class DashboardView(APIView):
         ).order_by("kickoff_time")[:10]
 
         predictions_qs = Prediction.objects.filter(user=user)
-        if group_id:
-            predictions_qs = predictions_qs.filter(group_id=group_id)
         if tournament_id:
             predictions_qs = predictions_qs.filter(match__tournament_id=tournament_id)
 

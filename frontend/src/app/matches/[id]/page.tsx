@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { api, Group, Match, Prediction, unwrapList } from "@/lib/api";
+import { api, Match, Prediction, unwrapList } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function MatchDetailPage() {
@@ -10,9 +10,7 @@ export default function MatchDetailPage() {
   const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
   const [match, setMatch] = useState<Match | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-  const [groupId, setGroupId] = useState<number | "">("");
+  const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [winnerId, setWinnerId] = useState<number | "">("");
@@ -30,35 +28,41 @@ export default function MatchDetailPage() {
         const list = unwrapList(data);
         setMatch(list.find((m) => m.id === Number(id)) || null);
       }),
-      api.getGroups(token).then((data) => setGroups(unwrapList(data))),
-      api.getPredictions(token, { match: Number(id) }).then((data) =>
-        setPredictions(unwrapList(data))
-      ),
+      api.getPredictions(token, { match: Number(id) }).then((data) => {
+        const existing = unwrapList(data)[0] ?? null;
+        setPrediction(existing);
+        if (existing) {
+          setHomeScore(existing.predicted_home_score);
+          setAwayScore(existing.predicted_away_score);
+          if (existing.predicted_winner_team) {
+            setWinnerId(existing.predicted_winner_team.id);
+          }
+        }
+      }),
     ]).catch((e) => setError(e.message));
   }, [token, id]);
 
-  const existing = predictions.find((p) => p.group === groupId);
-  const showWinnerSelect =
-    match?.is_knockout && homeScore === awayScore;
+  const showWinnerSelect = match?.is_knockout && homeScore === awayScore;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!token || !match || !groupId) return;
+    if (!token || !match) return;
     setError("");
     setSuccess("");
     const payload = {
-      group: Number(groupId),
       match: match.id,
       predicted_home_score: homeScore,
       predicted_away_score: awayScore,
       ...(showWinnerSelect && winnerId ? { predicted_winner_team_id: Number(winnerId) } : {}),
     };
     try {
-      if (existing) {
-        await api.updatePrediction(token, existing.id, payload);
+      if (prediction) {
+        const updated = await api.updatePrediction(token, prediction.id, payload);
+        setPrediction(updated);
         setSuccess("Prediction updated!");
       } else {
-        await api.createPrediction(token, payload);
+        const created = await api.createPrediction(token, payload);
+        setPrediction(created);
         setSuccess("Prediction submitted!");
       }
     } catch (err) {
@@ -111,20 +115,6 @@ export default function MatchDetailPage() {
           {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
           {success && <div className="mb-4 rounded-lg bg-green-50 p-3 text-green-700">{success}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Group</label>
-              <select
-                className="input"
-                value={groupId}
-                onChange={(e) => setGroupId(Number(e.target.value) || "")}
-                required
-              >
-                <option value="">Select group</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </div>
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="mb-1 block text-sm font-medium">{match.home_team.code} Score</label>
@@ -168,24 +158,22 @@ export default function MatchDetailPage() {
               </div>
             )}
             <button type="submit" className="btn-primary w-full">
-              {existing ? "Update Prediction" : "Submit Prediction"}
+              {prediction ? "Update Prediction" : "Submit Prediction"}
             </button>
           </form>
         </div>
       )}
 
-      {predictions.length > 0 && (
+      {prediction && (
         <div className="card mt-6">
-          <h2 className="mb-3 font-semibold">Your Predictions</h2>
-          {predictions.map((p) => (
-            <div key={p.id} className="border-t py-2 text-sm">
-              Group #{p.group}: {p.predicted_home_score}-{p.predicted_away_score}
-              {p.predicted_winner_team && ` (${p.predicted_winner_team.name} advances)`}
-              {p.points_awarded > 0 && (
-                <span className="ml-2 text-pitch-600">+{p.points_awarded} pts</span>
-              )}
-            </div>
-          ))}
+          <h2 className="mb-3 font-semibold">Your Prediction</h2>
+          <div className="text-sm">
+            {prediction.predicted_home_score}-{prediction.predicted_away_score}
+            {prediction.predicted_winner_team && ` (${prediction.predicted_winner_team.name} advances)`}
+            {prediction.points_awarded > 0 && (
+              <span className="ml-2 text-pitch-600">+{prediction.points_awarded} pts</span>
+            )}
+          </div>
         </div>
       )}
     </div>

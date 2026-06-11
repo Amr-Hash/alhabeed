@@ -1,7 +1,5 @@
-from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from groups.models import GroupMember
 from tournaments.models import Match, Stage
 
 
@@ -11,7 +9,7 @@ def validate_prediction_lock(match):
         raise ValidationError({"detail": message})
 
 
-def validate_stage_progression(user, group, match):
+def validate_stage_progression(user, match):
     if match.stage.stage_type == Stage.StageType.GROUP:
         return
 
@@ -29,10 +27,9 @@ def validate_stage_progression(user, group, match):
 
     from predictions.models import Prediction
 
-    previous_match_ids = previous_stage.matches.values_list("id", flat=True)
+    previous_match_ids = list(previous_stage.matches.values_list("id", flat=True))
     predicted_count = Prediction.objects.filter(
         user=user,
-        group=group,
         match_id__in=previous_match_ids,
     ).count()
 
@@ -42,11 +39,6 @@ def validate_stage_progression(user, group, match):
                 "detail": "You must complete predictions for the previous stage before continuing."
             }
         )
-
-
-def validate_group_membership(user, group):
-    if not GroupMember.objects.filter(user=user, group=group).exists():
-        raise ValidationError({"detail": "You are not a member of this group."})
 
 
 def validate_knockout_winner(match, predicted_home, predicted_away, predicted_winner):

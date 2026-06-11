@@ -44,7 +44,6 @@ class KnockoutValidationTests(TestCase):
         response = self.client.post(
             "/api/predictions/",
             {
-                "group": self.group.id,
                 "match": self.match.id,
                 "predicted_home_score": 1,
                 "predicted_away_score": 1,

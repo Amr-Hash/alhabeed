@@ -73,7 +73,6 @@ export interface CupGroup {
 
 export interface Prediction {
   id: number;
-  group: number;
   match: number;
   match_detail: Match;
   predicted_home_score: number;
@@ -204,9 +203,8 @@ export const api = {
     return request<{ results?: Match[] } | Match[]>(`/api/tournaments/matches${query}`, {}, token);
   },
 
-  getPredictions: (token: string, params?: { group?: number; tournament?: number; match?: number }) => {
+  getPredictions: (token: string, params?: { tournament?: number; match?: number }) => {
     const qs = new URLSearchParams();
-    if (params?.group) qs.set("group", String(params.group));
     if (params?.tournament) qs.set("tournament", String(params.tournament));
     if (params?.match) qs.set("match", String(params.match));
     const query = qs.toString() ? `?${qs}` : "";
@@ -214,7 +212,6 @@ export const api = {
   },
 
   createPrediction: (token: string, data: {
-    group: number;
     match: number;
     predicted_home_score: number;
     predicted_away_score: number;
@@ -239,9 +236,8 @@ export const api = {
     return request<LeaderboardEntry[]>(`/api/leaderboards/global${qs}`, {}, token);
   },
 
-  getDashboard: (token: string, params?: { group?: number; tournament?: number }) => {
+  getDashboard: (token: string, params?: { tournament?: number }) => {
     const qs = new URLSearchParams();
-    if (params?.group) qs.set("group", String(params.group));
     if (params?.tournament) qs.set("tournament", String(params.tournament));
     const query = qs.toString() ? `?${qs}` : "";
     return request<Dashboard>(`/api/dashboard${query}`, {}, token);
