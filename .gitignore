@@ -33,3 +33,5 @@ Thumbs.db
 # Build
 dist/
 build/
+.vercel/
+frontend/.vercel/
