@@ -63,7 +63,7 @@ class DashboardTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_dashboard_returns_data(self):
-        response = self.client.get("/api/dashboard/")
+        response = self.client.get("/api/dashboard")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("groups", response.data)
         self.assertIn("total_points", response.data)

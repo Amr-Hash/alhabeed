@@ -3,6 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from accounts.forms import AdminLoginForm
+from predictions.views import DashboardView
 from .health import health
 
 admin.site.login_form = AdminLoginForm
@@ -21,5 +22,5 @@ urlpatterns = [
     path("api/tournaments/", include("tournaments.urls")),
     path("api/predictions/", include("predictions.urls")),
     path("api/leaderboards/", include("predictions.leaderboard_urls")),
-    path("api/dashboard/", include("predictions.dashboard_urls")),
+    path("api/dashboard", DashboardView.as_view(), name="dashboard"),
 ]

@@ -126,8 +126,9 @@ async function request<T>(
     const message =
       body.detail ||
       body.non_field_errors?.[0] ||
-      JSON.stringify(body) ||
-      res.statusText;
+      (Object.keys(body).length > 0 ? JSON.stringify(body) : null) ||
+      res.statusText ||
+      "Request failed";
     throw new ApiError(res.status, message);
   }
   if (res.status === 204) return {} as T;
@@ -230,7 +231,7 @@ export const api = {
     if (params?.group) qs.set("group", String(params.group));
     if (params?.tournament) qs.set("tournament", String(params.tournament));
     const query = qs.toString() ? `?${qs}` : "";
-    return request<Dashboard>(`/api/dashboard/${query}`, {}, token);
+    return request<Dashboard>(`/api/dashboard${query}`, {}, token);
   },
 };
 
