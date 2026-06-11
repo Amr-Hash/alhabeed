@@ -215,15 +215,16 @@ export const api = {
     match: number;
     predicted_home_score: number;
     predicted_away_score: number;
-    predicted_winner_team_id?: number;
+    predicted_winner_team_id?: number | null;
   }) =>
     request<Prediction>("/api/predictions", { method: "POST", body: JSON.stringify(data) }, token),
 
-  updatePrediction: (token: string, id: number, data: Partial<{
+  updatePrediction: (token: string, id: number, data: {
+    match?: number;
     predicted_home_score: number;
     predicted_away_score: number;
-    predicted_winner_team_id: number | null;
-  }>) =>
+    predicted_winner_team_id?: number | null;
+  }) =>
     request<Prediction>(`/api/predictions/${id}`, { method: "PATCH", body: JSON.stringify(data) }, token),
 
   getGroupLeaderboard: (token: string, groupId: number, tournament?: number) => {
