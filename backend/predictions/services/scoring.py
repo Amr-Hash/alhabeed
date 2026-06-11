@@ -66,7 +66,7 @@ def calculate_prediction_points(prediction, match):
 
 
 def recalculate_match_scores(match):
-    from .models import Prediction
+    from predictions.models import Prediction
 
     predictions = Prediction.objects.filter(match=match)
     count = 0

@@ -23,6 +23,6 @@ admin_router.register("stages", StageViewSet, basename="admin-stage")
 admin_router.register("matches", AdminMatchViewSet, basename="admin-match")
 
 urlpatterns = [
-    path("", include(router.urls)),
     path("admin/", include(admin_router.urls)),
+    path("", include(router.urls)),
 ]
