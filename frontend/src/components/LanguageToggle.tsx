@@ -1,38 +1,27 @@
 "use client";
 
-import { useLocale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
+import type { Locale } from "@/lib/messages";
 
 export function LanguageToggle() {
   const { locale, setLocale } = useLocale();
+  const t = useT();
 
   return (
-    <div
-      className="flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs font-medium"
-      role="group"
-      aria-label="Language"
-    >
-      <button
-        type="button"
-        onClick={() => setLocale("en")}
-        className={`rounded-md px-2 py-1 transition ${
-          locale === "en"
-            ? "bg-pitch-600 text-white"
-            : "text-gray-600 hover:bg-gray-50"
-        }`}
+    <label className="flex items-center gap-2 rounded-lg border border-pitch-200 bg-pitch-50 px-2 py-1.5 text-sm shadow-sm">
+      <span className="text-base leading-none" aria-hidden>
+        🌐
+      </span>
+      <span className="hidden font-medium text-gray-600 sm:inline">{t("language")}</span>
+      <select
+        className="cursor-pointer border-0 bg-transparent py-0 pl-0 pr-6 text-sm font-semibold text-pitch-800 focus:outline-none focus:ring-0"
+        value={locale}
+        onChange={(e) => setLocale(e.target.value as Locale)}
+        aria-label={t("language")}
       >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => setLocale("ar")}
-        className={`rounded-md px-2 py-1 transition ${
-          locale === "ar"
-            ? "bg-pitch-600 text-white"
-            : "text-gray-600 hover:bg-gray-50"
-        }`}
-      >
-        ع
-      </button>
-    </div>
+        <option value="en">{t("english")}</option>
+        <option value="ar">{t("arabic")}</option>
+      </select>
+    </label>
   );
 }

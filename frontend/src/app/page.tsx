@@ -37,13 +37,15 @@ export default function HomePage() {
       ) : user && !isStaff(user) ? (
         <TournamentPicker />
       ) : !user ? (
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/register" className="btn-primary px-8 py-3 text-lg">
-            {t("getStarted")}
-          </Link>
-          <Link href="/login" className="btn-secondary px-8 py-3 text-lg">
-            {t("login")}
-          </Link>
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/register" className="btn-primary px-8 py-3 text-lg">
+              {t("getStarted")}
+            </Link>
+            <Link href="/login" className="btn-secondary px-8 py-3 text-lg">
+              {t("login")}
+            </Link>
+          </div>
         </div>
       ) : null}
 

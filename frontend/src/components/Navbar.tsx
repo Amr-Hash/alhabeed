@@ -42,7 +42,7 @@ export function Navbar() {
           <span>{APP_NAME}</span>
           <span className="hidden text-sm font-normal text-gray-400 sm:inline">{APP_NAME_LATIN}</span>
         </Link>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
           <LanguageToggle />
           {!loading && user ? (
             <>
