@@ -99,6 +99,7 @@ export interface Tournament {
   year: number;
   start_date: string;
   end_date: string;
+  is_active?: boolean;
   stage_count: number;
   match_count: number;
 }

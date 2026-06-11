@@ -6,6 +6,10 @@ class Tournament(models.Model):
     year = models.PositiveIntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive tournaments are hidden from users (still manageable in admin).",
+    )
     is_archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -13,6 +17,7 @@ class Tournament(models.Model):
         ordering = ["-year", "name"]
         indexes = [
             models.Index(fields=["year"]),
+            models.Index(fields=["is_active"]),
             models.Index(fields=["is_archived"]),
         ]
 

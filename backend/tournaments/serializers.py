@@ -96,6 +96,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "year",
             "start_date",
             "end_date",
+            "is_active",
             "is_archived",
             "stage_count",
             "match_count",
@@ -114,6 +115,7 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
             "year",
             "start_date",
             "end_date",
+            "is_active",
             "is_archived",
             "stages",
             "cup_groups",
@@ -123,7 +125,7 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
 class TournamentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tournament
-        fields = ("name", "year", "start_date", "end_date", "is_archived")
+        fields = ("name", "year", "start_date", "end_date", "is_active", "is_archived")
 
 
 class StageCreateSerializer(serializers.ModelSerializer):

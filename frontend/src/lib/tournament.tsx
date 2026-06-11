@@ -22,14 +22,15 @@ interface TournamentContextType {
 const TournamentContext = createContext<TournamentContextType | null>(null);
 
 function pickDefault(tournaments: Tournament[], savedId: string | undefined) {
+  const active = tournaments.filter((t) => t.is_active !== false);
+  const pool = active.length > 0 ? active : tournaments;
   if (savedId) {
-    const saved = tournaments.find((t) => String(t.id) === savedId);
+    const saved = pool.find((t) => String(t.id) === savedId);
     if (saved) return saved;
   }
   return (
-    tournaments.find((t) => t.name === "FIFA World Cup") ||
-    tournaments.find((t) => t.name === "Demo Test Cup") ||
-    tournaments[0] ||
+    pool.find((t) => t.name === "FIFA World Cup") ||
+    pool[0] ||
     null
   );
 }

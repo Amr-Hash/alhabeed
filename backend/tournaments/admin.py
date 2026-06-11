@@ -16,8 +16,9 @@ class MatchInline(admin.TabularInline):
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
-    list_display = ("name", "year", "start_date", "end_date", "is_archived")
-    list_filter = ("year", "is_archived")
+    list_display = ("name", "year", "start_date", "end_date", "is_active", "is_archived")
+    list_filter = ("year", "is_active", "is_archived")
+    list_editable = ("is_active",)
     inlines = [StageInline]
 
 

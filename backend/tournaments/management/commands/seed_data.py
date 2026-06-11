@@ -127,6 +127,7 @@ class Command(BaseCommand):
             defaults={
                 "start_date": WC2026_TOURNAMENT["start_date"],
                 "end_date": WC2026_TOURNAMENT["end_date"],
+                "is_active": True,
             },
         )
         stages = self._create_stages(tournament, STAGES_CONFIG)
@@ -150,17 +151,20 @@ class Command(BaseCommand):
         return Match.objects.filter(tournament=tournament).count()
 
     def _seed_test_tournament(self, teams, schedule):
-        tournament, _ = Tournament.objects.update_or_create(
+        tournament, created = Tournament.objects.update_or_create(
             name=schedule["name"],
             year=schedule["year"],
             defaults={
                 "start_date": schedule["start_date"],
                 "end_date": schedule["end_date"],
+                "is_active": True,
             },
         )
         tournament.start_date = schedule["start_date"]
         tournament.end_date = schedule["end_date"]
         tournament.is_archived = False
+        if created:
+            tournament.is_active = True
         tournament.save()
 
         stages = self._create_stages(tournament, TEST_STAGES_CONFIG)

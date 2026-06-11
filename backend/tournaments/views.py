@@ -24,7 +24,7 @@ class IsAdminUser(permissions.BasePermission):
 
 
 class TournamentViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Tournament.objects.filter(is_archived=False)
+    queryset = Tournament.objects.filter(is_archived=False, is_active=True)
     permission_classes = (permissions.IsAuthenticated,)
 
     def get_serializer_class(self):
@@ -35,7 +35,7 @@ class TournamentViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = Tournament.objects.all()
         if not self.request.user.is_staff:
-            qs = qs.filter(is_archived=False)
+            qs = qs.filter(is_archived=False, is_active=True)
         return qs.prefetch_related("stages", "cup_groups__group_teams__team")
 
     @action(detail=True, methods=["get"], url_path="cup-groups")
