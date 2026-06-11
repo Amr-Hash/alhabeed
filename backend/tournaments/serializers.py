@@ -161,6 +161,18 @@ class MatchAdminUpdateSerializer(serializers.ModelSerializer):
         _validate_match_result(self.instance, attrs)
         return attrs
 
+    def update(self, instance, validated_data):
+        match = super().update(instance, validated_data)
+        if (
+            match.status == Match.Status.FINISHED
+            and match.home_score is not None
+            and match.away_score is not None
+        ):
+            from predictions.services.scoring import recalculate_match_scores
+
+            recalculate_match_scores(match)
+        return match
+
 
 class TournamentListSerializer(serializers.ModelSerializer):
     stage_count = serializers.IntegerField(source="stages.count", read_only=True)

@@ -68,6 +68,7 @@ def calculate_prediction_points(prediction, match):
 def recalculate_match_scores(match):
     from predictions.models import Prediction
 
+    match = Match.objects.select_related("stage").get(pk=match.pk)
     predictions = Prediction.objects.filter(match=match)
     count = 0
     for prediction in predictions:

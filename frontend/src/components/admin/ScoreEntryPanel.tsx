@@ -50,6 +50,7 @@ export function ScoreEntryPanel({
         away_score: draft.away_score === "" ? null : Number(draft.away_score),
         winner_team: draft.winner_team ? Number(draft.winner_team) : null,
       });
+      await api.adminRecalculateMatch(token, match.id);
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save score.");

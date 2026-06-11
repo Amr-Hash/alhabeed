@@ -161,6 +161,76 @@ class ScoringEngineTests(TestCase):
         self.assertEqual(result.winner_bonus_points, 1)
         self.assertEqual(result.total_points, 6)
 
+    def test_correct_outcome_only_when_goal_diff_differs(self):
+        match = self._make_match(3, 1)
+        pred = self._make_prediction(match, 4, 1)
+        result = calculate_prediction_points(pred, match)
+        self.assertEqual(result.outcome_points, 1)
+        self.assertEqual(result.total_points, 1)
+
+    def test_away_win_outcome_only(self):
+        match = self._make_match(0, 3)
+        pred = self._make_prediction(match, 0, 2)
+        result = calculate_prediction_points(pred, match)
+        self.assertEqual(result.outcome_points, 1)
+        self.assertEqual(result.total_points, 1)
+
+
+class ScoringIntegrationTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="adminscore",
+            email="adminscore@example.com",
+            password="pass12345",
+            is_staff=True,
+        )
+        self.user = User.objects.create_user(
+            username="scoreuser", email="scoreuser@example.com", password="pass12345"
+        )
+        self.home = Team.objects.create(name="Home", code="HSC")
+        self.away = Team.objects.create(name="Away", code="ASC")
+        self.tournament = Tournament.objects.create(
+            name="Cup",
+            year=2026,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+        )
+        self.stage = Stage.objects.create(
+            tournament=self.tournament,
+            name="Day 1",
+            order=1,
+            stage_type=Stage.StageType.GROUP,
+        )
+        self.match = Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now() + timedelta(days=2),
+        )
+        self.prediction = Prediction.objects.create(
+            user=self.user,
+            match=self.match,
+            predicted_home_score=3,
+            predicted_away_score=0,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
+
+    def test_admin_finish_match_awards_outcome_point(self):
+        response = self.client.patch(
+            f"/api/tournaments/admin/matches/{self.match.id}",
+            {
+                "status": Match.Status.FINISHED,
+                "home_score": 2,
+                "away_score": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.prediction.refresh_from_db()
+        self.assertEqual(self.prediction.points_awarded, 1)
+
 
 class PredictionLockTests(TestCase):
     def setUp(self):

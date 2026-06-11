@@ -113,7 +113,7 @@ export const messages = {
       "Same margin, but not the exact score. Example: you predict 3–1 and the final is 2–0 (both +2).",
     correctOutcome: "Correct outcome",
     correctOutcomeDesc:
-      "Right winner or draw, but wrong goal difference. Example: you predict 1–0 and the final is 3–2 (both home wins).",
+      "Right winner or draw, but wrong goal difference. Example: you predict 4–1 and the final is 3–1 (both home wins).",
     wrongOutcome: "Wrong outcome",
     wrongOutcomeDesc:
       "You picked the wrong result. Example: you predict 2–1 (home win) but the final is 1–1 or 0–2.",

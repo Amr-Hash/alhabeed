@@ -85,8 +85,11 @@ export function MatchCard({ match, prediction, showPredictLink, showResultLink }
           <span className="font-semibold">
             {prediction.predicted_home_score}-{prediction.predicted_away_score}
           </span>
-          {prediction.points_awarded > 0 && (
-            <span className="ml-2 text-pitch-600">+{prediction.points_awarded} {t("points")}</span>
+          {(prediction.points_awarded > 0 || isFinished) && (
+            <span className="ml-2 text-pitch-600">
+              {prediction.points_awarded > 0 ? "+" : ""}
+              {prediction.points_awarded} {t("points")}
+            </span>
           )}
         </p>
       )}
