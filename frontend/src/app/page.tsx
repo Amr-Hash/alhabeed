@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 
 export default function HomePage() {
@@ -8,13 +9,13 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col items-center py-16 text-center">
-      <div className="mb-8 text-6xl">🏆</div>
+      <div className="mb-8 text-6xl">⚽</div>
       <h1 className="mb-4 text-4xl font-bold text-pitch-900 sm:text-5xl">
-        World Cup Prediction Competition
+        {APP_NAME}
       </h1>
       <p className="mb-8 max-w-2xl text-lg text-gray-600">
-        Compete with friends by predicting match results. Earn points for exact scores,
-        goal differences, and correct outcomes. Climb the leaderboard and prove you know football best.
+        {APP_TAGLINE} World Cup, Champions League, or any football tournament —
+        pick your competition and prove you know the game best.
       </p>
       <div className="flex flex-wrap justify-center gap-4">
         {loading ? (
@@ -44,7 +45,7 @@ export default function HomePage() {
           <div className="mb-2 text-2xl">👥</div>
           <h3 className="font-semibold">Create Groups</h3>
           <p className="mt-1 text-sm text-gray-600">
-            Form private groups with friends and compete on group leaderboards.
+            Form private leagues with friends and compete on group leaderboards.
           </p>
         </div>
         <div className="card text-left">

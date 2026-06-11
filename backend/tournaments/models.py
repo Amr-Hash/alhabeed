@@ -66,7 +66,7 @@ class Team(models.Model):
 
 
 class CupGroup(models.Model):
-    """FIFA World Cup group (A–L) within a tournament."""
+    """Tournament group (e.g. Group A) within a competition."""
 
     tournament = models.ForeignKey(
         Tournament, on_delete=models.CASCADE, related_name="cup_groups"

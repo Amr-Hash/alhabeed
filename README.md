@@ -1,6 +1,6 @@
-# World Cup Prediction Competition Platform
+# Pitch Predictions
 
-A full-stack web application where users compete by predicting football match results during a World Cup-style tournament. Built with Django REST Framework, Next.js, PostgreSQL, and JWT authentication.
+A full-stack football prediction platform where users compete by predicting match results across any tournament — World Cup, domestic leagues, Champions League, and more. Built with Django REST Framework, Next.js, PostgreSQL, and JWT authentication.
 
 ## Features
 
@@ -40,15 +40,17 @@ Stage progression rules apply in order: predictions for Round of 32 must be comp
 
 | Service | URL |
 |---------|-----|
-| **App (frontend)** | https://worldcup-predictions-phi.vercel.app |
-| **Backend API** | https://worldcup-predictions-api.vercel.app |
-| **Django Admin** | https://worldcup-predictions-api.vercel.app/admin/ |
+| **App (frontend)** | https://pitch-predictions.vercel.app |
+| **Backend API** | https://pitch-predictions-api.vercel.app |
+| **Django Admin** | https://pitch-predictions-api.vercel.app/admin/ |
+
+Legacy URLs (`worldcup-predictions-*`) may still redirect until fully migrated.
 
 The frontend proxies `/api/*` to the backend using Next.js rewrites. Use the backend URL directly for Django admin (sessions and CSRF do not work reliably through the frontend proxy).
 
 ### Finish database setup (required)
 
-1. Open [Vercel Storage → Neon](https://vercel.com/amr-hashem/worldcup-predictions-api/stores) and create a Postgres database for **worldcup-predictions-api**
+1. Open [Vercel Storage → Neon](https://vercel.com/amr-hashem/pitch-predictions-api/stores) and create a Postgres database for **pitch-predictions-api**
 2. Redeploy the backend: `cd backend && npx vercel deploy --prod`
 3. Seed data locally:
    ```bash
@@ -234,8 +236,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request:
 3. Docker image builds for both services
 
 **On push to `main`/`master` (after tests pass):**
-1. Deploy backend to Vercel (`worldcup-predictions-api`)
-2. Deploy frontend to Vercel (`worldcup-predictions`)
+1. Deploy backend to Vercel (`pitch-predictions-api`)
+2. Deploy frontend to Vercel (`pitch-predictions`)
 
 ### One-time GitHub secret setup
 

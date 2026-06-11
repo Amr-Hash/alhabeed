@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: worldcup-backend
+    name: pitch-predictions-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend

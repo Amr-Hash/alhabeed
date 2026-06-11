@@ -13,7 +13,7 @@ def health(request):
                 "database": "not_configured",
                 "detail": (
                     "DATABASE_URL is missing. Add Neon Postgres in Vercel: "
-                    "Project worldcup-predictions-api → Storage → Create Database → Neon."
+                    "Project pitch-predictions-api → Storage → Create Database → Neon."
                 ),
             },
             status=503,

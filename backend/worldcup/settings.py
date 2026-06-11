@@ -137,6 +137,8 @@ SIMPLE_JWT = {
 
 _default_cors = (
     "http://localhost:3000,http://127.0.0.1:3000,"
+    "https://pitch-predictions.vercel.app,"
+    "https://pitch-predictions-phi.vercel.app,"
     "https://worldcup-predictions-phi.vercel.app,"
     "https://worldcup-predictions.vercel.app"
 )
@@ -153,6 +155,9 @@ if IS_VERCEL:
     CSRF_TRUSTED_ORIGINS = config(
         "CSRF_TRUSTED_ORIGINS",
         default=(
+            "https://pitch-predictions.vercel.app,"
+            "https://pitch-predictions-phi.vercel.app,"
+            "https://pitch-predictions-api.vercel.app,"
             "https://worldcup-predictions-phi.vercel.app,"
             "https://worldcup-predictions.vercel.app,"
             "https://worldcup-predictions-api.vercel.app"
@@ -161,8 +166,8 @@ if IS_VERCEL:
     )
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "World Cup Prediction API",
-    "DESCRIPTION": "API for World Cup prediction competition platform",
+    "TITLE": "Pitch Predictions API",
+    "DESCRIPTION": "API for football match prediction competitions",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

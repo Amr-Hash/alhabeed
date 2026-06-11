@@ -18,6 +18,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: "/world-cup-groups",
+        destination: "/tournament-groups",
+        permanent: true,
+      },
+      {
         source: "/admin",
         destination: `${backendUrl}/admin/`,
         permanent: false,

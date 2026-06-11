@@ -64,8 +64,8 @@ export default function GroupsContent() {
       <h1 className="mb-2 text-3xl font-bold">Prediction Groups</h1>
       <p className="mb-6 text-gray-600">
         Create or join a group to compete with friends.{" "}
-        <Link href="/world-cup-groups" className="font-medium text-pitch-600 hover:underline">
-          View World Cup 2026 groups & teams →
+        <Link href="/tournament-groups" className="font-medium text-pitch-600 hover:underline">
+          View tournament groups & teams →
         </Link>
       </p>
       {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}

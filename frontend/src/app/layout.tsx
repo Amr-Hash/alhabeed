@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
@@ -8,8 +9,8 @@ import { Navbar } from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "World Cup Predictions",
-  description: "Compete with friends by predicting World Cup match results",
+  title: APP_NAME,
+  description: APP_TAGLINE,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { EmptyState } from "@/components/EmptyState";
 
-export default function WorldCupGroupsPage() {
+export default function TournamentGroupsPage() {
   const { user, token, loading: authLoading } = useAuth();
   const { selectedTournament } = useTournament();
   const router = useRouter();
@@ -28,15 +28,15 @@ export default function WorldCupGroupsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-3xl font-bold">Groups & Teams</h1>
+      <h1 className="mb-2 text-3xl font-bold">Tournament Groups & Teams</h1>
       <p className="mb-6 text-gray-600">
         {selectedTournament.name} ({selectedTournament.year}) — {cupGroups.length} groups
       </p>
 
       {selectedTournament.name === "Demo Test Cup" ? (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <strong>Demo Test Cup</strong> — compact 2-group demo for testing matchday
-          prediction locks before the full World Cup starts.
+          <strong>Demo Test Cup</strong> — compact demo for testing matchday prediction
+          locks before a full tournament starts.
         </div>
       ) : (
         <div className="mb-6 rounded-lg border border-pitch-200 bg-pitch-50 p-4 text-sm text-pitch-900">
