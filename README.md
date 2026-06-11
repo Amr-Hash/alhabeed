@@ -50,15 +50,12 @@ The frontend proxies `/api/*` to the backend using Next.js rewrites. Use the bac
 
 ### Finish database setup (required)
 
-1. Open [Vercel Storage → Neon](https://vercel.com/amr-hashem/pitch-predictions-api/stores) and create a Postgres database for **pitch-predictions-api**
-2. Redeploy the backend: `cd backend && npx vercel deploy --prod`
-3. Seed data locally:
-   ```bash
-   cd backend
-   npx vercel env pull .env.local
-   pip install -r requirements.txt
-   python manage.py seed_data
-   ```
+Production Postgres database name: **`alhabeed`** (renamed from Neon default `neondb`).
+
+1. Open [Vercel Storage → Neon](https://vercel.com/amr-hashem/pitch-predictions-api/stores) for **pitch-predictions-api**
+2. Ensure `DATABASE_URL` points to the `alhabeed` database (updated automatically after rename)
+3. To rename locally or on another host: `python manage.py rename_database --from neondb --to alhabeed`
+4. Redeploy the backend after any `DATABASE_URL` change: `cd backend && npx vercel deploy --prod`
 
 ## Quick Start (Docker)
 
