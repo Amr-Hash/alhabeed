@@ -166,8 +166,8 @@ if IS_VERCEL:
     )
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Pitch Predictions API",
-    "DESCRIPTION": "API for football match prediction competitions",
+    "TITLE": "الهبيد API",
+    "DESCRIPTION": "Football match prediction competitions API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

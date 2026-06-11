@@ -22,16 +22,6 @@ const nextConfig = {
         destination: "/tournament-groups",
         permanent: true,
       },
-      {
-        source: "/admin",
-        destination: `${backendUrl}/admin/`,
-        permanent: false,
-      },
-      {
-        source: "/admin/:path*",
-        destination: `${backendUrl}/admin/:path*`,
-        permanent: false,
-      },
     ];
   },
 };

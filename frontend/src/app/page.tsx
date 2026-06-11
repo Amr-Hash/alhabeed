@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { APP_NAME, APP_NAME_LATIN, APP_TAGLINE, APP_TAGLINE_EN } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 
 export default function HomePage() {
@@ -10,12 +10,15 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center py-16 text-center">
       <div className="mb-8 text-6xl">⚽</div>
-      <h1 className="mb-4 text-4xl font-bold text-pitch-900 sm:text-5xl">
+      <h1 className="mb-2 text-4xl font-bold text-pitch-900 sm:text-5xl">
         {APP_NAME}
       </h1>
+      <p className="mb-1 text-lg text-gray-500">{APP_NAME_LATIN}</p>
       <p className="mb-8 max-w-2xl text-lg text-gray-600">
-        {APP_TAGLINE} World Cup, Champions League, or any football tournament —
-        pick your competition and prove you know the game best.
+        {APP_TAGLINE}
+      </p>
+      <p className="mb-8 max-w-2xl text-sm text-gray-500">
+        {APP_TAGLINE_EN} Works with any tournament — World Cup, Champions League, and more.
       </p>
       <div className="flex flex-wrap justify-center gap-4">
         {loading ? (

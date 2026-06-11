@@ -7,6 +7,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  is_staff: boolean;
 }
 
 export interface AuthTokens {
@@ -60,6 +61,7 @@ export interface CupGroupTeam {
 export interface CupGroup {
   id: number;
   name: string;
+  tournament?: number;
   group_teams: CupGroupTeam[];
 }
 
@@ -100,8 +102,11 @@ export interface Tournament {
   start_date: string;
   end_date: string;
   is_active?: boolean;
-  stage_count: number;
-  match_count: number;
+  is_archived?: boolean;
+  stage_count?: number;
+  match_count?: number;
+  stages?: { id: number; name: string; order: number; stage_type: string }[];
+  cup_groups?: CupGroup[];
 }
 
 class ApiError extends Error {
@@ -234,6 +239,191 @@ export const api = {
     const query = qs.toString() ? `?${qs}` : "";
     return request<Dashboard>(`/api/dashboard${query}`, {}, token);
   },
+
+  // Admin API (requires is_staff)
+  adminGetTournaments: (token: string) =>
+    request<{ results?: Tournament[] } | Tournament[]>(
+      "/api/tournaments/admin/tournaments",
+      {},
+      token
+    ),
+
+  adminGetTournament: (token: string, id: number) =>
+    request<Tournament>(`/api/tournaments/admin/tournaments/${id}`, {}, token),
+
+  adminCreateTournament: (
+    token: string,
+    data: {
+      name: string;
+      year: number;
+      start_date: string;
+      end_date: string;
+      is_active?: boolean;
+      is_archived?: boolean;
+    }
+  ) =>
+    request<Tournament>(
+      "/api/tournaments/admin/tournaments",
+      { method: "POST", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminUpdateTournament: (
+    token: string,
+    id: number,
+    data: Partial<{
+      name: string;
+      year: number;
+      start_date: string;
+      end_date: string;
+      is_active: boolean;
+      is_archived: boolean;
+    }>
+  ) =>
+    request<Tournament>(
+      `/api/tournaments/admin/tournaments/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminDeleteTournament: (token: string, id: number) =>
+    request(`/api/tournaments/admin/tournaments/${id}`, { method: "DELETE" }, token),
+
+  adminGetStages: (token: string, tournament?: number) => {
+    const qs = tournament ? `?tournament=${tournament}` : "";
+    return request<
+      { results?: { id: number; name: string; order: number; stage_type: string; tournament: number }[] }
+      | { id: number; name: string; order: number; stage_type: string; tournament: number }[]
+    >(`/api/tournaments/admin/stages${qs}`, {}, token);
+  },
+
+  adminCreateStage: (
+    token: string,
+    data: { tournament: number; name: string; order: number; stage_type: string }
+  ) =>
+    request("/api/tournaments/admin/stages", { method: "POST", body: JSON.stringify(data) }, token),
+
+  adminDeleteStage: (token: string, id: number) =>
+    request(`/api/tournaments/admin/stages/${id}`, { method: "DELETE" }, token),
+
+  adminGetTeams: (token: string) =>
+    request<{ results?: Team[] } | Team[]>("/api/tournaments/teams", {}, token),
+
+  adminCreateTeam: (token: string, data: { name: string; code: string; flag_url?: string }) =>
+    request<Team>("/api/tournaments/teams", { method: "POST", body: JSON.stringify(data) }, token),
+
+  adminUpdateTeam: (
+    token: string,
+    id: number,
+    data: Partial<{ name: string; code: string; flag_url: string }>
+  ) =>
+    request<Team>(`/api/tournaments/teams/${id}`, { method: "PATCH", body: JSON.stringify(data) }, token),
+
+  adminDeleteTeam: (token: string, id: number) =>
+    request(`/api/tournaments/teams/${id}`, { method: "DELETE" }, token),
+
+  adminGetCupGroups: (token: string, tournament?: number) => {
+    const qs = tournament ? `?tournament=${tournament}` : "";
+    return request<{ results?: CupGroup[] } | CupGroup[]>(
+      `/api/tournaments/admin/cup-groups${qs}`,
+      {},
+      token
+    );
+  },
+
+  adminCreateCupGroup: (
+    token: string,
+    data: { tournament: number; name: string; team_ids?: number[] }
+  ) =>
+    request<CupGroup>(
+      "/api/tournaments/admin/cup-groups",
+      { method: "POST", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminUpdateCupGroup: (
+    token: string,
+    id: number,
+    data: Partial<{ tournament: number; name: string; team_ids: number[] }>
+  ) =>
+    request<CupGroup>(
+      `/api/tournaments/admin/cup-groups/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminDeleteCupGroup: (token: string, id: number) =>
+    request(`/api/tournaments/admin/cup-groups/${id}`, { method: "DELETE" }, token),
+
+  adminGetMatches: (
+    token: string,
+    params?: { tournament?: number; stage?: number; matchday?: number; cup_group?: string; status?: string }
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.tournament) qs.set("tournament", String(params.tournament));
+    if (params?.stage) qs.set("stage", String(params.stage));
+    if (params?.matchday) qs.set("matchday", String(params.matchday));
+    if (params?.cup_group) qs.set("cup_group", params.cup_group);
+    if (params?.status) qs.set("status", params.status);
+    const query = qs.toString() ? `?${qs}` : "";
+    return request<{ results?: Match[] } | Match[]>(
+      `/api/tournaments/admin/matches${query}`,
+      {},
+      token
+    );
+  },
+
+  adminCreateMatch: (
+    token: string,
+    data: {
+      tournament: number;
+      stage: number;
+      home_team: number;
+      away_team: number;
+      kickoff_time: string;
+      cup_group?: number | null;
+      matchday?: number | null;
+      status?: string;
+    }
+  ) =>
+    request<Match>(
+      "/api/tournaments/admin/matches",
+      { method: "POST", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminUpdateMatch: (
+    token: string,
+    id: number,
+    data: Partial<{
+      tournament: number;
+      stage: number;
+      cup_group: number | null;
+      matchday: number | null;
+      home_team: number;
+      away_team: number;
+      kickoff_time: string;
+      status: string;
+      home_score: number | null;
+      away_score: number | null;
+      winner_team: number | null;
+    }>
+  ) =>
+    request<Match>(
+      `/api/tournaments/admin/matches/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminDeleteMatch: (token: string, id: number) =>
+    request(`/api/tournaments/admin/matches/${id}`, { method: "DELETE" }, token),
+
+  adminRecalculateMatch: (token: string, id: number) =>
+    request<{ detail: string }>(
+      `/api/tournaments/admin/matches/${id}/recalculate`,
+      { method: "POST" },
+      token
+    ),
 };
 
 export function unwrapList<T>(data: { results?: T[] } | T[]): T[] {

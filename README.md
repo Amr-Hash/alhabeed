@@ -1,4 +1,4 @@
-# Pitch Predictions
+# الهبيد (Al-Habeed)
 
 A full-stack football prediction platform where users compete by predicting match results across any tournament — World Cup, domestic leagues, Champions League, and more. Built with Django REST Framework, Next.js, PostgreSQL, and JWT authentication.
 

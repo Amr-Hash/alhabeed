@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { APP_NAME } from "@/lib/brand";
+import { APP_NAME, APP_NAME_LATIN } from "@/lib/brand";
 import { useAuth } from "@/lib/auth";
 import { TournamentSelect } from "@/components/TournamentSelect";
 
@@ -12,7 +12,9 @@ export function Navbar() {
     <nav className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold text-pitch-700">
-          <span>⚽</span> {APP_NAME}
+          <span>⚽</span>
+          <span>{APP_NAME}</span>
+          <span className="hidden text-sm font-normal text-gray-400 sm:inline">{APP_NAME_LATIN}</span>
         </Link>
         <div className="flex flex-wrap items-center gap-4">
           {!loading && user ? (
@@ -33,6 +35,11 @@ export function Navbar() {
               <Link href="/leaderboards" className="text-sm font-medium text-gray-600 hover:text-pitch-600">
                 Leaderboards
               </Link>
+              {(user.is_staff ?? false) && (
+                <Link href="/admin" className="text-sm font-medium text-amber-700 hover:text-amber-800">
+                  Admin
+                </Link>
+              )}
               <span className="text-sm text-gray-500">{user.username}</span>
               <button onClick={logout} className="btn-secondary text-sm">
                 Logout

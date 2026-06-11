@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { APP_NAME, APP_NAME_LATIN, APP_TAGLINE } from "@/lib/brand";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
@@ -9,7 +9,7 @@ import { Navbar } from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: `${APP_NAME} | ${APP_NAME_LATIN}`,
   description: APP_TAGLINE,
 };
 

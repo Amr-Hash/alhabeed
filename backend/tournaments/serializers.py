@@ -28,7 +28,40 @@ class CupGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CupGroup
-        fields = ("id", "name", "group_teams")
+        fields = ("id", "tournament", "name", "group_teams")
+
+
+class CupGroupCreateSerializer(serializers.ModelSerializer):
+    team_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False, default=list
+    )
+
+    class Meta:
+        model = CupGroup
+        fields = ("id", "tournament", "name", "team_ids")
+
+    def _set_teams(self, cup_group, team_ids):
+        cup_group.group_teams.all().delete()
+        for order, team_id in enumerate(team_ids):
+            CupGroupTeam.objects.create(
+                cup_group=cup_group, team_id=team_id, order=order
+            )
+
+    def create(self, validated_data):
+        team_ids = validated_data.pop("team_ids", [])
+        cup_group = CupGroup.objects.create(**validated_data)
+        if team_ids:
+            self._set_teams(cup_group, team_ids)
+        return cup_group
+
+    def update(self, instance, validated_data):
+        team_ids = validated_data.pop("team_ids", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if team_ids is not None:
+            self._set_teams(instance, team_ids)
+        return instance
 
 
 class MatchSerializer(serializers.ModelSerializer):
@@ -66,21 +99,55 @@ class MatchSerializer(serializers.ModelSerializer):
         )
 
 
+def _validate_match_result(instance, attrs):
+    home_score = attrs.get("home_score", instance.home_score)
+    away_score = attrs.get("away_score", instance.away_score)
+    winner_team = attrs.get("winner_team", instance.winner_team)
+    status = attrs.get("status", instance.status)
+
+    if status == Match.Status.FINISHED:
+        if home_score is None or away_score is None:
+            raise serializers.ValidationError(
+                {"home_score": "Scores are required when marking a match as finished."}
+            )
+
+    if instance.is_knockout and home_score == away_score and not winner_team:
+        if status == Match.Status.FINISHED:
+            raise serializers.ValidationError(
+                {"winner_team": "Winner is required for tied knockout matches."}
+            )
+    return attrs
+
+
 class MatchResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Match
         fields = ("home_score", "away_score", "winner_team", "status")
 
     def validate(self, attrs):
-        instance = self.instance
-        home_score = attrs.get("home_score", instance.home_score)
-        away_score = attrs.get("away_score", instance.away_score)
-        winner_team = attrs.get("winner_team", instance.winner_team)
+        _validate_match_result(self.instance, attrs)
+        return attrs
 
-        if instance.is_knockout and home_score == away_score and not winner_team:
-            raise serializers.ValidationError(
-                {"winner_team": "Winner is required for tied knockout matches."}
-            )
+
+class MatchAdminUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Match
+        fields = (
+            "tournament",
+            "stage",
+            "cup_group",
+            "matchday",
+            "home_team",
+            "away_team",
+            "kickoff_time",
+            "status",
+            "home_score",
+            "away_score",
+            "winner_team",
+        )
+
+    def validate(self, attrs):
+        _validate_match_result(self.instance, attrs)
         return attrs
 
 
@@ -146,6 +213,8 @@ class MatchCreateSerializer(serializers.ModelSerializer):
         fields = (
             "tournament",
             "stage",
+            "cup_group",
+            "matchday",
             "home_team",
             "away_team",
             "kickoff_time",

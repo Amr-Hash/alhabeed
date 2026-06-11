@@ -4,9 +4,10 @@ from rest_framework.response import Response
 
 from .models import CupGroup, Match, Stage, Team, Tournament
 from .serializers import (
+    CupGroupCreateSerializer,
     CupGroupSerializer,
+    MatchAdminUpdateSerializer,
     MatchCreateSerializer,
-    MatchResultSerializer,
     MatchSerializer,
     StageCreateSerializer,
     StageSerializer,
@@ -112,18 +113,57 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
 
 
-class AdminMatchViewSet(viewsets.ModelViewSet):
-    queryset = Match.objects.select_related(
-        "home_team", "away_team", "winner_team", "stage", "tournament"
+class AdminCupGroupViewSet(viewsets.ModelViewSet):
+    queryset = CupGroup.objects.select_related("tournament").prefetch_related(
+        "group_teams__team"
     )
     permission_classes = (permissions.IsAuthenticated, IsAdminUser)
 
     def get_serializer_class(self):
-        if self.action in ("create",):
+        if self.action in ("create", "update", "partial_update"):
+            return CupGroupCreateSerializer
+        return CupGroupSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        tournament_id = self.request.query_params.get("tournament")
+        if tournament_id:
+            qs = qs.filter(tournament_id=tournament_id)
+        return qs
+
+
+class AdminMatchViewSet(viewsets.ModelViewSet):
+    queryset = Match.objects.select_related(
+        "home_team", "away_team", "winner_team", "stage", "tournament", "cup_group"
+    )
+    permission_classes = (permissions.IsAuthenticated, IsAdminUser)
+    pagination_class = None
+
+    def get_serializer_class(self):
+        if self.action == "create":
             return MatchCreateSerializer
         if self.action in ("update", "partial_update"):
-            return MatchResultSerializer
+            return MatchAdminUpdateSerializer
         return MatchSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        tournament_id = self.request.query_params.get("tournament")
+        stage_id = self.request.query_params.get("stage")
+        matchday = self.request.query_params.get("matchday")
+        cup_group = self.request.query_params.get("cup_group")
+        status_filter = self.request.query_params.get("status")
+        if tournament_id:
+            qs = qs.filter(tournament_id=tournament_id)
+        if stage_id:
+            qs = qs.filter(stage_id=stage_id)
+        if matchday:
+            qs = qs.filter(matchday=matchday)
+        if cup_group:
+            qs = qs.filter(cup_group__name=cup_group.upper())
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
 
     def perform_update(self, serializer):
         match = serializer.save()
