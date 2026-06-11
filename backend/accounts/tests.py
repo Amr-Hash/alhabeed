@@ -78,24 +78,24 @@ class LogoutTests(TestCase):
 
     def test_me_endpoint(self):
         self.client.force_authenticate(user=self.user)
-        response = self.client.get("/api/auth/me/")
+        response = self.client.get("/api/auth/me")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["email"], "logout@example.com")
 
     def test_password_reset_request(self):
         response = self.client.post(
-            "/api/auth/password-reset/", {"email": "logout@example.com"}
+            "/api/auth/password-reset", {"email": "logout@example.com"}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_logout_blacklists_token(self):
         login = self.client.post(
-            "/api/auth/login/",
+            "/api/auth/login",
             {"email": "logout@example.com", "password": "pass12345"},
         )
         refresh = login.data["refresh"]
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
-        response = self.client.post("/api/auth/logout/", {"refresh": refresh})
+        response = self.client.post("/api/auth/logout", {"refresh": refresh})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 

@@ -136,27 +136,27 @@ async function request<T>(
 
 export const api = {
   register: (data: { username: string; email: string; password: string; password_confirm: string }) =>
-    request("/api/auth/register/", { method: "POST", body: JSON.stringify(data) }),
+    request("/api/auth/register", { method: "POST", body: JSON.stringify(data) }),
 
   login: (email: string, password: string) =>
-    request<AuthTokens>("/api/auth/login/", {
+    request<AuthTokens>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   refresh: (refresh: string) =>
-    request<{ access: string }>("/api/auth/refresh/", {
+    request<{ access: string }>("/api/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refresh }),
     }),
 
   logout: (refresh: string, token: string) =>
-    request("/api/auth/logout/", {
+    request("/api/auth/logout", {
       method: "POST",
       body: JSON.stringify({ refresh }),
     }, token),
 
-  me: (token: string) => request<User>("/api/auth/me/", {}, token),
+  me: (token: string) => request<User>("/api/auth/me", {}, token),
 
   getGroups: (token: string) => request<Group[]>("/api/groups/", {}, token),
 
@@ -164,7 +164,7 @@ export const api = {
     request<Group>("/api/groups/", { method: "POST", body: JSON.stringify(data) }, token),
 
   joinGroup: (token: string, invite_code: string) =>
-    request<Group>("/api/groups/join/", {
+    request<Group>("/api/groups/join", {
       method: "POST",
       body: JSON.stringify({ invite_code }),
     }, token),
@@ -173,7 +173,7 @@ export const api = {
     request<{ results?: Tournament[] } | Tournament[]>("/api/tournaments/", {}, token),
 
   getCupGroups: (token: string, tournamentId: number) =>
-    request<CupGroup[]>(`/api/tournaments/${tournamentId}/cup-groups/`, {}, token),
+    request<CupGroup[]>(`/api/tournaments/${tournamentId}/cup-groups`, {}, token),
 
   getMatches: (token: string, params?: {
     tournament?: number;
@@ -187,7 +187,7 @@ export const api = {
     if (params?.matchday) qs.set("matchday", String(params.matchday));
     if (params?.cup_group) qs.set("cup_group", params.cup_group);
     const query = qs.toString() ? `?${qs}` : "";
-    return request<{ results?: Match[] } | Match[]>(`/api/tournaments/matches/${query}`, {}, token);
+    return request<{ results?: Match[] } | Match[]>(`/api/tournaments/matches${query}`, {}, token);
   },
 
   getPredictions: (token: string, params?: { group?: number; tournament?: number; match?: number }) => {
@@ -196,7 +196,7 @@ export const api = {
     if (params?.tournament) qs.set("tournament", String(params.tournament));
     if (params?.match) qs.set("match", String(params.match));
     const query = qs.toString() ? `?${qs}` : "";
-    return request<{ results?: Prediction[] } | Prediction[]>(`/api/predictions/${query}`, {}, token);
+    return request<{ results?: Prediction[] } | Prediction[]>(`/api/predictions${query}`, {}, token);
   },
 
   createPrediction: (token: string, data: {
@@ -213,16 +213,16 @@ export const api = {
     predicted_away_score: number;
     predicted_winner_team_id: number | null;
   }>) =>
-    request<Prediction>(`/api/predictions/${id}/`, { method: "PATCH", body: JSON.stringify(data) }, token),
+    request<Prediction>(`/api/predictions/${id}`, { method: "PATCH", body: JSON.stringify(data) }, token),
 
   getGroupLeaderboard: (token: string, groupId: number, tournament?: number) => {
     const qs = tournament ? `?tournament=${tournament}` : "";
-    return request<LeaderboardEntry[]>(`/api/leaderboards/group/${groupId}/${qs}`, {}, token);
+    return request<LeaderboardEntry[]>(`/api/leaderboards/group/${groupId}${qs}`, {}, token);
   },
 
   getGlobalLeaderboard: (token: string, tournament?: number) => {
     const qs = tournament ? `?tournament=${tournament}` : "";
-    return request<LeaderboardEntry[]>(`/api/leaderboards/global/${qs}`, {}, token);
+    return request<LeaderboardEntry[]>(`/api/leaderboards/global${qs}`, {}, token);
   },
 
   getDashboard: (token: string, params?: { group?: number; tournament?: number }) => {

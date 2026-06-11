@@ -19,7 +19,7 @@ class AuthTests(TestCase):
 
     def test_register_and_login(self):
         response = self.client.post(
-            "/api/auth/register/",
+            "/api/auth/register",
             {
                 "username": "testuser",
                 "email": "test@example.com",
@@ -30,7 +30,7 @@ class AuthTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         response = self.client.post(
-            "/api/auth/login/",
+            "/api/auth/login",
             {"email": "test@example.com", "password": "testpass123"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -39,7 +39,7 @@ class AuthTests(TestCase):
 
     def test_register_password_mismatch(self):
         response = self.client.post(
-            "/api/auth/register/",
+            "/api/auth/register",
             {
                 "username": "testuser",
                 "email": "test@example.com",
@@ -71,7 +71,7 @@ class GroupTests(TestCase):
         )
         self.client.force_authenticate(user=other)
         response = self.client.post(
-            "/api/groups/join/", {"invite_code": invite_code}
+            "/api/groups/join", {"invite_code": invite_code}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -387,13 +387,13 @@ class LeaderboardTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_group_leaderboard(self):
-        response = self.client.get(f"/api/leaderboards/group/{self.group.id}/")
+        response = self.client.get(f"/api/leaderboards/group/{self.group.id}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["total_points"], 5)
         self.assertEqual(response.data[0]["rank"], 1)
 
     def test_global_leaderboard(self):
-        response = self.client.get("/api/leaderboards/global/")
+        response = self.client.get("/api/leaderboards/global")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(len(response.data) >= 1)

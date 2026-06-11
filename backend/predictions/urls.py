@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import PredictionViewSet
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("", PredictionViewSet, basename="prediction")
 
 urlpatterns = [

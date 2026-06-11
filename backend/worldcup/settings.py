@@ -173,3 +173,6 @@ EMAIL_BACKEND = config(
 )
 
 PREDICTION_LOCK_HOURS = 1
+
+# Avoid 301 redirect loops when API is proxied through Vercel (trailing-slash mismatch)
+APPEND_SLASH = False

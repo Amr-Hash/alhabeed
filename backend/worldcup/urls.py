@@ -8,11 +8,11 @@ from .health import health
 admin.site.login_form = AdminLoginForm
 
 urlpatterns = [
-    path("api/health/", health, name="health"),
+    path("api/health", health, name="health"),
     path("admin/", admin.site.urls),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "api/docs/",
+        "api/docs",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
