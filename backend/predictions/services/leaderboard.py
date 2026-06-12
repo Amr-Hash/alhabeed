@@ -16,18 +16,16 @@ def _predictions_for_tournament(tournament_id):
 
 def assign_competition_ranks(rows, points_key="total_points"):
     """
-    Users with the same points share a rank (1, 1, 3 …).
-    Display order within a tie is alphabetical by username only — not a separate rank.
+    Users with the same points share a rank; the next distinct score gets the next
+    rank (1, 1, 2 …). Order within a tie is alphabetical by username only.
     """
     rows.sort(key=lambda row: (-row[points_key], row.get("username", "").lower()))
     rank = 0
-    position = 0
     prev_points = object()
     for row in rows:
-        position += 1
         points = row[points_key]
         if points != prev_points:
-            rank = position
+            rank += 1
             prev_points = points
         row["rank"] = rank
     return rows

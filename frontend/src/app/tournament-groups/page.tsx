@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useTournament } from "@/lib/tournament";
 import { EmptyState } from "@/components/EmptyState";
 import { GroupStandingsTable } from "@/components/GroupStandingsTable";
+import { ThirdPlaceRankingTable } from "@/components/ThirdPlaceRankingTable";
 import { RequireTournament } from "@/components/RequireTournament";
 import { useLocale, useT } from "@/lib/i18n";
 import { localizedName, tournamentLabel } from "@/lib/localize";
@@ -43,6 +44,13 @@ function TournamentGroupsContent() {
       : standings?.standing_rules_label_en;
   const tiebreakers =
     locale === "ar" ? standings?.tiebreakers_ar : standings?.tiebreakers_en;
+  const thirdPlaceTiebreakers =
+    locale === "ar"
+      ? standings?.third_place_tiebreakers_ar
+      : standings?.third_place_tiebreakers_en;
+  const showThirdPlaceRace =
+    (standings?.best_third_place_qualifiers ?? 0) > 0 &&
+    standings?.standing_rules === "fifa_world_cup";
 
   return (
     <div>
@@ -69,7 +77,12 @@ function TournamentGroupsContent() {
           </h2>
           <p className="mt-1 text-sm font-semibold text-royal-700">{rulesLabel}</p>
           <p className="mt-2 text-xs text-gray-600">
-            {t("qualifiersPerGroup", { count: standings.qualifiers_per_group })}
+            {showThirdPlaceRace
+              ? t("wcQualifiersSummary", {
+                  top: standings.qualifiers_per_group,
+                  third: standings.best_third_place_qualifiers ?? 0,
+                })
+              : t("qualifiersPerGroup", { count: standings.qualifiers_per_group })}
           </p>
           {tiebreakers && tiebreakers.length > 0 && (
             <ol className="mt-3 list-decimal space-y-1 ps-5 text-xs text-gray-600">
@@ -78,6 +91,32 @@ function TournamentGroupsContent() {
               ))}
             </ol>
           )}
+        </div>
+      )}
+
+      {showThirdPlaceRace && standings && (
+        <div className="card mt-6">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-night-700">
+            {t("thirdPlaceRace")}
+          </h2>
+          <p className="mt-1 text-xs text-gray-600">
+            {t("wcQualifiersSummary", {
+              top: standings.qualifiers_per_group,
+              third: standings.best_third_place_qualifiers ?? 0,
+            })}
+          </p>
+          {thirdPlaceTiebreakers && thirdPlaceTiebreakers.length > 0 && (
+            <ol className="mt-2 list-decimal space-y-1 ps-5 text-xs text-gray-600">
+              {thirdPlaceTiebreakers.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          )}
+          <ThirdPlaceRankingTable
+            rows={standings.third_place_ranking ?? []}
+            locale={locale}
+            slots={standings.best_third_place_qualifiers ?? 0}
+          />
         </div>
       )}
 

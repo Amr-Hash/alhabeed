@@ -135,6 +135,54 @@ def _group_matches(cup_group: CupGroup):
     )
 
 
+def _third_place_sort_key(row: dict) -> tuple:
+    team = row["team"]
+    code = team.get("code") or ""
+    return (
+        -row["points"],
+        -row["goal_difference"],
+        -row["goals_for"],
+        tuple(-ord(char) for char in code),
+    )
+
+
+def _apply_best_third_place_qualifiers(
+    groups: list[dict], tournament: Tournament
+) -> list[dict]:
+    """Mark the best third-placed teams across groups (FIFA World Cup 2026)."""
+    meta = get_rule_metadata(tournament.standing_rules)
+    slots = meta.get("best_third_place_qualifiers") or 0
+    if slots <= 0:
+        return groups
+
+    third_placed = []
+    for group in groups:
+        standings = group.get("standings") or []
+        if len(standings) < 3:
+            continue
+        third = standings[2]
+        third_placed.append(
+            {
+                **third,
+                "group_id": group["group_id"],
+                "group_name": group["group_name"],
+            }
+        )
+
+    third_placed.sort(key=_third_place_sort_key)
+    qualifying_team_ids = {row["team"]["id"] for row in third_placed[:slots]}
+
+    for group in groups:
+        for row in group.get("standings") or []:
+            if row["team"]["id"] in qualifying_team_ids and row["rank"] == 3:
+                row["qualifies"] = True
+                row["qualification_via"] = "best_third"
+            elif row.get("qualification_via") is None and row.get("qualifies"):
+                row["qualification_via"] = "group"
+
+    return groups
+
+
 def build_cup_group_standings(cup_group: CupGroup, tournament: Tournament):
     team_rows = list(cup_group.group_teams.select_related("team").order_by("order"))
     team_ids = [row.team_id for row in team_rows]
@@ -178,6 +226,7 @@ def build_cup_group_standings(cup_group: CupGroup, tournament: Tournament):
                 "goal_difference": row.goal_difference,
                 "points": row.points,
                 "qualifies": index <= qualifiers,
+                "qualification_via": "group" if index <= qualifiers else None,
             }
         )
 
@@ -191,11 +240,40 @@ def build_cup_group_standings(cup_group: CupGroup, tournament: Tournament):
 
 def build_tournament_standings(tournament: Tournament):
     meta = get_rule_metadata(tournament.standing_rules)
-    groups = (
+    groups_qs = (
         CupGroup.objects.filter(tournament=tournament)
         .prefetch_related("group_teams__team")
         .order_by("name")
     )
+    groups = [build_cup_group_standings(group, tournament) for group in groups_qs]
+    groups = _apply_best_third_place_qualifiers(groups, tournament)
+
+    best_third_slots = meta.get("best_third_place_qualifiers") or 0
+    third_place_ranking = []
+    if best_third_slots:
+        for group in groups:
+            standings = group.get("standings") or []
+            if len(standings) < 3:
+                continue
+            third = standings[2]
+            third_place_ranking.append(
+                {
+                    "group_id": group["group_id"],
+                    "group_name": group["group_name"],
+                    "group_name_ar": group.get("group_name_ar"),
+                    "rank_among_thirds": 0,
+                    "qualifies": third.get("qualifies", False)
+                    and third.get("qualification_via") == "best_third",
+                    "team": third["team"],
+                    "points": third["points"],
+                    "goal_difference": third["goal_difference"],
+                    "goals_for": third["goals_for"],
+                }
+            )
+        third_place_ranking.sort(key=_third_place_sort_key)
+        for index, row in enumerate(third_place_ranking, start=1):
+            row["rank_among_thirds"] = index
+
     return {
         "tournament_id": tournament.id,
         "standing_rules": tournament.standing_rules,
@@ -203,7 +281,11 @@ def build_tournament_standings(tournament: Tournament):
         "standing_rules_label_ar": meta["label_ar"],
         "tiebreakers_en": meta["steps_en"],
         "tiebreakers_ar": meta["steps_ar"],
+        "third_place_tiebreakers_en": meta.get("third_place_steps_en") or [],
+        "third_place_tiebreakers_ar": meta.get("third_place_steps_ar") or [],
         "qualifiers_per_group": tournament.qualifiers_per_group
         or meta["qualifiers_per_group"],
-        "groups": [build_cup_group_standings(group, tournament) for group in groups],
+        "best_third_place_qualifiers": best_third_slots,
+        "third_place_ranking": third_place_ranking,
+        "groups": groups,
     }

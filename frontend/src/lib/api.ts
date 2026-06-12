@@ -137,6 +137,19 @@ export interface GroupStandingRow {
   goal_difference: number;
   points: number;
   qualifies: boolean;
+  qualification_via?: "group" | "best_third" | null;
+}
+
+export interface ThirdPlaceStandingRow {
+  rank_among_thirds: number;
+  qualifies: boolean;
+  group_id: number;
+  group_name: string;
+  group_name_ar?: string;
+  team: Team;
+  points: number;
+  goal_difference: number;
+  goals_for: number;
 }
 
 export interface CupGroupStandings {
@@ -153,7 +166,11 @@ export interface TournamentStandings {
   standing_rules_label_ar: string;
   tiebreakers_en: string[];
   tiebreakers_ar: string[];
+  third_place_tiebreakers_en?: string[];
+  third_place_tiebreakers_ar?: string[];
   qualifiers_per_group: number;
+  best_third_place_qualifiers?: number;
+  third_place_ranking?: ThirdPlaceStandingRow[];
   groups: CupGroupStandings[];
 }
 

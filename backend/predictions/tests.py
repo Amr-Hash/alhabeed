@@ -723,7 +723,7 @@ class CompetitionRankTests(TestCase):
         ranks = {row["username"]: row["rank"] for row in response.data}
         self.assertEqual(ranks["alpha"], 1)
         self.assertEqual(ranks["zulu"], 1)
-        self.assertEqual(ranks["middle"], 3)
+        self.assertEqual(ranks["middle"], 2)
 
     def test_global_podium_includes_all_tied_leaders(self):
         from predictions.services.leaderboard import global_podium_for_user
@@ -732,6 +732,9 @@ class CompetitionRankTests(TestCase):
         rank_one = [entry for entry in podium if entry["rank"] == 1]
         self.assertEqual(len(rank_one), 2)
         self.assertEqual({entry["username"] for entry in rank_one}, {"alpha", "zulu"})
+        rank_two = [entry for entry in podium if entry["rank"] == 2]
+        self.assertEqual(len(rank_two), 1)
+        self.assertEqual(rank_two[0]["username"], "middle")
 
 
 class NotificationTests(TestCase):

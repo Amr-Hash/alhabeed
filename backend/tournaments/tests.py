@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 from predictions.models import Prediction
 from tournaments.models import CupGroup, Match, Stage, Team, Tournament
+from tournaments.services.standing_rules import get_rule_metadata
 from tournaments.services.live_scores import (
     apply_live_match_update,
     sync_tournament_live_scores,
@@ -336,6 +337,79 @@ class GroupStandingsTests(TestCase):
         self.assertEqual(by_code["DDD"]["rank"], 1)
         self.assertEqual(by_code["AAA"]["points"], by_code["BBB"]["points"])
         self.assertLess(by_code["AAA"]["rank"], by_code["BBB"]["rank"])
+
+    def _add_group_b(self):
+        self.group_b = CupGroup.objects.create(tournament=self.tournament, name="B")
+        for order, code in enumerate(("EEE", "FFF", "GGG", "HHH")):
+            if code not in self.teams:
+                self.teams[code] = Team.objects.create(name=code, code=code)
+            self.group_b.group_teams.create(team=self.teams[code], order=order)
+
+    def _finish_in_group(self, cup_group, home_code, away_code, home_score, away_score, matchday=1):
+        return Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            cup_group=cup_group,
+            matchday=matchday,
+            home_team=self.teams[home_code],
+            away_team=self.teams[away_code],
+            kickoff_time=timezone.now() - timedelta(days=1),
+            status=Match.Status.FINISHED,
+            home_score=home_score,
+            away_score=away_score,
+        )
+
+    def _complete_group_a(self):
+        self._finish("AAA", "BBB", 2, 0, matchday=1)
+        self._finish("CCC", "DDD", 1, 1, matchday=1)
+        self._finish("AAA", "CCC", 3, 0, matchday=2)
+        self._finish("BBB", "DDD", 2, 0, matchday=2)
+        self._finish("AAA", "DDD", 4, 0, matchday=3)
+        self._finish("BBB", "CCC", 1, 0, matchday=3)
+
+    def _complete_group_b(self, ggg_goals_for=1):
+        self._finish_in_group(self.group_b, "EEE", "FFF", 2, 0, matchday=1)
+        self._finish_in_group(self.group_b, "GGG", "HHH", ggg_goals_for, 0, matchday=1)
+        self._finish_in_group(self.group_b, "EEE", "GGG", 2, 0, matchday=2)
+        self._finish_in_group(self.group_b, "FFF", "HHH", 2, 0, matchday=2)
+        self._finish_in_group(self.group_b, "EEE", "HHH", 3, 0, matchday=3)
+        self._finish_in_group(self.group_b, "FFF", "GGG", 1, 0, matchday=3)
+
+    def test_best_third_place_teams_qualify_across_groups(self):
+        self._add_group_b()
+        self._complete_group_a()
+        self._complete_group_b(ggg_goals_for=2)
+
+        fifa_meta = {
+            **get_rule_metadata(Tournament.StandingRules.FIFA_WORLD_CUP),
+            "best_third_place_qualifiers": 1,
+        }
+        with patch(
+            "tournaments.services.standings.get_rule_metadata",
+            return_value=fifa_meta,
+        ):
+            response = self.client.get(f"/api/tournaments/{self.tournament.id}/standings")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["best_third_place_qualifiers"], 1)
+
+        group_a = next(g for g in response.data["groups"] if g["group_name"] == "A")
+        group_b = next(g for g in response.data["groups"] if g["group_name"] == "B")
+        third_a = group_a["standings"][2]
+        third_b = group_b["standings"][2]
+
+        self.assertEqual(third_a["team"]["code"], "CCC")
+        self.assertEqual(third_b["team"]["code"], "GGG")
+        self.assertFalse(third_a["qualifies"])
+        self.assertEqual(third_a["qualification_via"], None)
+        self.assertTrue(third_b["qualifies"])
+        self.assertEqual(third_b["qualification_via"], "best_third")
+
+        ranking = response.data["third_place_ranking"]
+        self.assertEqual(len(ranking), 2)
+        self.assertEqual(ranking[0]["team"]["code"], "GGG")
+        self.assertTrue(ranking[0]["qualifies"])
+        self.assertEqual(ranking[1]["team"]["code"], "CCC")
+        self.assertFalse(ranking[1]["qualifies"])
 
 
 class LiveScoreSyncTests(TestCase):

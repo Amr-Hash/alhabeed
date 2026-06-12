@@ -5,6 +5,8 @@ RULE_METADATA = {
         "label_en": "FIFA World Cup",
         "label_ar": "كأس العالم (فيفا)",
         "qualifiers_per_group": 2,
+        # 12 groups × top 2 (24) + best 8 third-placed teams = 32 in the round of 32
+        "best_third_place_qualifiers": 8,
         "steps_en": [
             "Points",
             "Goal difference (all group matches)",
@@ -20,6 +22,16 @@ RULE_METADATA = {
             "نقاط المواجهات المباشرة بين المتعادلين",
             "فارق الأهداف في المواجهات المباشرة بين المتعادلين",
             "الأهداف المسجلة في المواجهات المباشرة بين المتعادلين",
+        ],
+        "third_place_steps_en": [
+            "Points (all group matches)",
+            "Goal difference (all group matches)",
+            "Goals scored (all group matches)",
+        ],
+        "third_place_steps_ar": [
+            "النقاط (كل مباريات المجموعة)",
+            "فارق الأهداف (كل مباريات المجموعة)",
+            "الأهداف المسجلة (كل مباريات المجموعة)",
         ],
     },
     Tournament.StandingRules.UEFA_CHAMPIONS_LEAGUE: {

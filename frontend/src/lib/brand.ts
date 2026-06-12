@@ -1,4 +1,4 @@
-export const APP_NAME = "الهبيدة (جمع)";
+export const APP_NAME = "الهبيدة";
 export const APP_NAME_LATIN = "alhabeeda";
 export const APP_SLUG = "alhabeed";
 export const APP_URL = "https://alhabeed.vercel.app";

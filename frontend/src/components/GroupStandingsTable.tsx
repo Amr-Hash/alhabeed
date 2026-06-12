@@ -47,8 +47,15 @@ export function GroupStandingsTable({ standings, locale }: Props) {
               <td className="py-2 pe-2 font-bold text-night-800">
                 {row.rank}
                 {row.qualifies && (
-                  <span className="ms-1 text-[10px] text-pitch-600" title={t("qualifies")}>
-                    ✓
+                  <span
+                    className="ms-1 text-[10px] text-pitch-600"
+                    title={
+                      row.qualification_via === "best_third"
+                        ? t("qualifiesBestThird")
+                        : t("qualifies")
+                    }
+                  >
+                    {row.qualification_via === "best_third" ? "✓³" : "✓"}
                   </span>
                 )}
               </td>
