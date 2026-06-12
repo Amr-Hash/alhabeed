@@ -66,3 +66,40 @@ def fetch_fixtures_by_ids(fixture_ids: list[str | int]) -> tuple[list[dict[str, 
         api_requests += 1
 
     return fixtures, api_requests
+
+
+_season_access_cache: dict[tuple[int, int], tuple[float, dict[str, Any]]] = {}
+_SEASON_ACCESS_CACHE_TTL_SECONDS = 3600
+
+
+def check_season_access(league_id: int, season: int) -> dict[str, Any]:
+    """
+    Return whether this league/season is available on the current API plan.
+    Uses one fixtures request (counts toward daily quota); result cached 1 hour.
+    """
+    import time
+
+    cache_key = (league_id, season)
+    now = time.time()
+    cached = _season_access_cache.get(cache_key)
+    if cached and now - cached[0] < _SEASON_ACCESS_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    headers = api_football_headers()
+    res = requests.get(
+        f"{API_FOOTBALL_BASE}/fixtures",
+        headers=headers,
+        params={"league": league_id, "season": season, "page": 1},
+        timeout=30,
+    )
+    res.raise_for_status()
+    body = res.json()
+    errors = body.get("errors") or {}
+    if errors:
+        plan_msg = errors.get("plan") or errors.get("season") or str(errors)
+        result = {"ok": False, "message": str(plan_msg)}
+    else:
+        result = {"ok": True, "message": None}
+
+    _season_access_cache[cache_key] = (now, result)
+    return result

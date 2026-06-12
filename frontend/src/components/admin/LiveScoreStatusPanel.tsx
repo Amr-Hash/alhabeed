@@ -23,6 +23,7 @@ const ISSUE_KEYS: Record<string, MessageKey> = {
   missing_api_key: "adminLiveScoreIssueMissingApiKey",
   missing_config: "adminLiveScoreIssueMissingConfig",
   unmapped_fixtures: "adminLiveScoreIssueUnmapped",
+  api_season_not_on_plan: "adminLiveScoreIssueSeasonNotOnPlan",
   outside_sync_window: "adminLiveScoreIssueOutsideWindow",
   provider_not_implemented: "adminLiveScoreIssueNotImplemented",
 };
@@ -32,6 +33,11 @@ const HEALTH_KEYS: Record<string, MessageKey> = {
   warning: "adminLiveScoreHealthWarning",
   error: "adminLiveScoreHealthError",
   manual: "adminLiveScoreHealthManual",
+};
+
+const CRON_SCHEDULE_KEYS: Record<string, MessageKey> = {
+  every_15_minutes: "adminLiveScoreCronEvery15",
+  every_5_minutes: "adminLiveScoreCronEvery5",
 };
 
 function HealthBadge({ health }: { health: string }) {
@@ -103,7 +109,9 @@ function EnvironmentCard({ environment }: { environment: LiveScoreEnvironment })
       <EnvRow
         label={t("adminLiveScoreCronSchedule")}
         ok={environment.cron_secret_configured}
-        detail={t("adminLiveScoreCronEvery5")}
+        detail={t(
+          CRON_SCHEDULE_KEYS[environment.cron_schedule] ?? "adminLiveScoreCronEvery15",
+        )}
       />
     </div>
   );

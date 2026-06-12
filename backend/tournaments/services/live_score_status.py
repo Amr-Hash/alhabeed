@@ -62,6 +62,15 @@ def _config_issues(tournament: Tournament) -> list[str]:
             issues.append("missing_api_key")
         if not config.get("league_id") or not config.get("season"):
             issues.append("missing_config")
+        elif os.environ.get("API_FOOTBALL_KEY", "").strip():
+            try:
+                from tournaments.services.api_football_client import check_season_access
+
+                access = check_season_access(int(config["league_id"]), int(config["season"]))
+                if not access.get("ok"):
+                    issues.append("api_season_not_on_plan")
+            except Exception:
+                logger.exception("Could not verify API-Football season access")
     elif provider == Tournament.LiveScoreProvider.SPORTMONKS:
         if not os.environ.get("SPORTMONKS_API_KEY", "").strip():
             issues.append("missing_api_key")
@@ -81,7 +90,13 @@ def _health_status(tournament: Tournament, issues: list[str], unmapped_non_finis
     blocking = {
         issue
         for issue in issues
-        if issue in {"missing_api_key", "missing_config", "provider_not_implemented"}
+        if issue
+        in {
+            "missing_api_key",
+            "missing_config",
+            "provider_not_implemented",
+            "api_season_not_on_plan",
+        }
     }
     if blocking:
         return "error"
@@ -155,6 +170,7 @@ def get_tournament_live_score_status(
     if (
         tournament.live_score_provider != Tournament.LiveScoreProvider.MANUAL
         and unmapped_non_finished > 0
+        and "api_season_not_on_plan" not in issues
     ):
         issues.append("unmapped_fixtures")
 

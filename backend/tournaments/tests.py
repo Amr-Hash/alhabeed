@@ -621,6 +621,14 @@ class LiveScoreStatusTests(TestCase):
             status=Match.Status.SCHEDULED,
             external_fixture_id="12345",
         )
+        self.season_access_patcher = patch(
+            "tournaments.services.api_football_client.check_season_access",
+            return_value={"ok": True, "message": None},
+        )
+        self.season_access_patcher.start()
+
+    def tearDown(self):
+        self.season_access_patcher.stop()
 
     def test_overview_requires_staff(self):
         response = self.client.get(
@@ -696,6 +704,31 @@ class LiveScoreStatusTests(TestCase):
         tournament = response.data["tournaments"][0]
         self.assertEqual(tournament["live_score_config"], {})
         self.assertIn("missing_config", tournament["issues"])
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_detail_flags_season_not_on_plan_instead_of_unmapped(self):
+        Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now() + timedelta(hours=1),
+            status=Match.Status.SCHEDULED,
+            external_fixture_id="",
+        )
+        with patch(
+            "tournaments.services.api_football_client.check_season_access",
+            return_value={"ok": False, "message": "Free plans do not have access to this season"},
+        ):
+            self.client.force_authenticate(user=self.admin)
+            response = self.client.get(
+                f"/api/tournaments/admin/tournaments/{self.tournament.id}/live-score-status"
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        issues = response.data["tournament"]["issues"]
+        self.assertIn("api_season_not_on_plan", issues)
+        self.assertNotIn("unmapped_fixtures", issues)
+        self.assertEqual(response.data["tournament"]["health"], "error")
 
     @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
     def test_kickoff_isoformat_handles_none(self):
