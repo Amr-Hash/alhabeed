@@ -538,6 +538,19 @@ class LiveScoreStatusTests(TestCase):
         self.assertEqual(tournament["matches"]["mapped_fixtures"], 1)
         self.assertEqual(tournament["health"], "ready")
 
+    @patch.dict(
+        os.environ,
+        {"LIVE_SCORE_SYNC_START": "not-a-date", "API_FOOTBALL_KEY": "test-key"},
+        clear=False,
+    )
+    def test_overview_tolerates_invalid_sync_window_env(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            "/api/tournaments/admin/tournaments/live-score-overview"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["environment"]["sync_window_open"])
+
     @patch.dict(os.environ, {"API_FOOTBALL_KEY": ""}, clear=False)
     def test_detail_flags_missing_api_key(self):
         self.client.force_authenticate(user=self.admin)

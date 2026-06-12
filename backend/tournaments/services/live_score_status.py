@@ -1,25 +1,39 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Any
 
 from django.db.models import Count, Q
 from django.utils import timezone
 
 from tournaments.models import Match, Tournament
-from tournaments.services.live_scores import SYNC_WINDOW_AFTER, SYNC_WINDOW_BEFORE, is_sync_window_open
+from tournaments.services.live_scores import (
+    SYNC_WINDOW_AFTER,
+    SYNC_WINDOW_BEFORE,
+    is_sync_window_open,
+    parse_sync_bound,
+)
+
+
+def _aware_kickoff(kickoff_time: datetime) -> datetime:
+    if timezone.is_aware(kickoff_time):
+        return kickoff_time
+    return timezone.make_aware(kickoff_time, timezone.utc)
 
 
 def get_global_live_score_environment() -> dict[str, Any]:
-    start = os.environ.get("LIVE_SCORE_SYNC_START", "").strip() or None
-    end = os.environ.get("LIVE_SCORE_SYNC_END", "").strip() or None
+    start_raw = os.environ.get("LIVE_SCORE_SYNC_START", "").strip()
+    end_raw = os.environ.get("LIVE_SCORE_SYNC_END", "").strip()
+    start = parse_sync_bound(start_raw)
+    end = parse_sync_bound(end_raw)
     return {
         "api_football_key_configured": bool(os.environ.get("API_FOOTBALL_KEY", "").strip()),
         "sportmonks_key_configured": bool(os.environ.get("SPORTMONKS_API_KEY", "").strip()),
         "cron_secret_configured": bool(os.environ.get("CRON_SECRET", "").strip()),
         "sync_window_open": is_sync_window_open(),
-        "sync_window_start": start,
-        "sync_window_end": end,
+        "sync_window_start": start.isoformat() if start else (start_raw or None),
+        "sync_window_end": end.isoformat() if end else (end_raw or None),
         "cron_schedule": "every_5_minutes",
     }
 
@@ -88,9 +102,10 @@ def get_tournament_live_score_status(
         if match.status == Match.Status.LIVE:
             sync_window_matches += 1
             continue
-        start = match.kickoff_time - SYNC_WINDOW_BEFORE
-        end = match.kickoff_time + SYNC_WINDOW_AFTER
-        if start <= now <= end:
+        kickoff = _aware_kickoff(match.kickoff_time)
+        window_start = kickoff - SYNC_WINDOW_BEFORE
+        window_end = kickoff + SYNC_WINDOW_AFTER
+        if window_start <= now <= window_end:
             sync_window_matches += 1
 
     issues = _config_issues(tournament)

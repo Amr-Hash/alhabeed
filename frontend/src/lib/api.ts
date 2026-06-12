@@ -474,11 +474,16 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const contentType = res.headers.get("content-type") ?? "";
+    const body =
+      contentType.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : {};
     const message =
       body.detail ||
       body.non_field_errors?.[0] ||
       (Object.keys(body).length > 0 ? JSON.stringify(body) : null) ||
+      (res.status >= 500 ? `Server error (${res.status})` : null) ||
       res.statusText ||
       "Request failed";
     throw new ApiError(res.status, message);

@@ -49,21 +49,29 @@ API_FOOTBALL_STATUS = {
 }
 
 
+def parse_sync_bound(raw: str) -> date | None:
+    """Parse LIVE_SCORE_SYNC_* env values (YYYY-MM-DD or ISO datetime prefix)."""
+    value = raw.strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        logger.warning("Ignoring invalid LIVE_SCORE_SYNC date value: %r", value)
+        return None
+
+
 def is_sync_window_open() -> bool:
     """Optional date gate via LIVE_SCORE_SYNC_START / LIVE_SCORE_SYNC_END env."""
-    start_raw = os.environ.get("LIVE_SCORE_SYNC_START", "").strip()
-    end_raw = os.environ.get("LIVE_SCORE_SYNC_END", "").strip()
-    if not start_raw and not end_raw:
+    start = parse_sync_bound(os.environ.get("LIVE_SCORE_SYNC_START", ""))
+    end = parse_sync_bound(os.environ.get("LIVE_SCORE_SYNC_END", ""))
+    if not start and not end:
         return True
     today = timezone.now().date()
-    if start_raw:
-        start = date.fromisoformat(start_raw)
-        if today < start:
-            return False
-    if end_raw:
-        end = date.fromisoformat(end_raw)
-        if today > end:
-            return False
+    if start and today < start:
+        return False
+    if end and today > end:
+        return False
     return True
 
 

@@ -136,11 +136,11 @@ class Command(BaseCommand):
         stages = self._create_stages(tournament, STAGES_CONFIG)
         cup_groups = self._create_cup_groups(tournament, WC2026_GROUPS, teams)
 
+        from tournaments.management.commands.sync_wc2026_kickoffs import parse_kickoff
+
         for group_letter, matchday, home_code, away_code, kickoff in WC2026_GROUP_MATCHES:
             if isinstance(kickoff, str):
-                from datetime import datetime
-
-                kickoff = datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
+                kickoff = parse_kickoff(kickoff)
             Match.objects.create(
                 tournament=tournament,
                 stage=stages[1],
