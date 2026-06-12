@@ -34,7 +34,19 @@ fi
 
 extract_deploy_url() {
   local log_file=$1
-  grep -Eo 'https://[a-zA-Z0-9._-]+\.vercel\.app' "$log_file" \
+  # Prefer the unique production deployment URL (not team/default aliases).
+  local from_production
+  from_production="$(
+    grep -Eo 'Production[[:space:]]+https://[a-zA-Z0-9._-]+\.vercel\.app' "$log_file" \
+      | tail -1 \
+      | awk '{print $NF}'
+  )"
+  if [ -n "$from_production" ]; then
+    echo "$from_production"
+    return
+  fi
+
+  grep -Eo 'https://[a-z0-9]+-[a-z0-9]{6,}-[a-zA-Z0-9._-]+\.vercel\.app' "$log_file" \
     | grep -v "${PRODUCTION_ALIAS}" \
     | tail -1
 }
@@ -81,14 +93,14 @@ wait_for_sha() {
   local label=$3
   local i
 
-  for i in $(seq 1 18); do
+  for i in $(seq 1 24); do
     actual="$(read_git_sha "$base_url" 2>/dev/null || true)"
     if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
       echo "${label} is serving commit ${expected}"
       return 0
     fi
-    echo "Waiting for ${label} (attempt ${i}/18): got '${actual:-<empty>}' expected '${expected}'"
-    sleep 10
+    echo "Waiting for ${label} (attempt ${i}/24): got '${actual:-<empty>}' expected '${expected}'"
+    sleep 15
   done
 
   echo "${label} did not serve commit ${expected} in time."
