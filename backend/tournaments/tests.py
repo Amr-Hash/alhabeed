@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -789,6 +789,63 @@ class LiveScoreStatusTests(TestCase):
         )
         self.assertEqual(bad_row["health"], "error")
         self.assertIn("status_build_failed", bad_row["issues"])
+
+
+class ApiFootballClientTests(TestCase):
+    def setUp(self):
+        from tournaments.services import api_football_client as client
+
+        client._season_access_cache.clear()
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    @patch("tournaments.services.api_football_client.requests.get")
+    def test_check_season_access_returns_ok_when_no_errors(self, mock_get):
+        from tournaments.services.api_football_client import check_season_access
+
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.json.return_value = {"response": [], "errors": {}}
+        mock_get.return_value = mock_response
+
+        result = check_season_access(1, 2026)
+
+        self.assertTrue(result["ok"])
+        self.assertIsNone(result["message"])
+        mock_get.assert_called_once()
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    @patch("tournaments.services.api_football_client.requests.get")
+    def test_check_season_access_returns_plan_error(self, mock_get):
+        from tournaments.services.api_football_client import check_season_access
+
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.json.return_value = {
+            "errors": {"plan": "Free plans do not have access to this season"},
+        }
+        mock_get.return_value = mock_response
+
+        result = check_season_access(1, 2026)
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Free plans", result["message"])
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    @patch("tournaments.services.api_football_client.requests.get")
+    def test_check_season_access_uses_cache(self, mock_get):
+        from tournaments.services.api_football_client import check_season_access
+
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.json.return_value = {"response": [], "errors": {}}
+        mock_get.return_value = mock_response
+
+        first = check_season_access(1, 2026)
+        second = check_season_access(1, 2026)
+
+        self.assertTrue(first["ok"])
+        self.assertEqual(first, second)
+        mock_get.assert_called_once()
 
 
 class LiveScoreSyncTests(TestCase):
