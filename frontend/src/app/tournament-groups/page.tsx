@@ -11,7 +11,7 @@ import { GroupStandingsTable } from "@/components/GroupStandingsTable";
 import { ThirdPlaceRankingTable } from "@/components/ThirdPlaceRankingTable";
 import { RequireTournament } from "@/components/RequireTournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { localizedName, tournamentLabel } from "@/lib/localize";
+import { localizedName, tournamentTitle } from "@/lib/localize";
 import { cupGroupAccent } from "@/lib/theme";
 
 function TournamentGroupsContent() {
@@ -36,8 +36,7 @@ function TournamentGroupsContent() {
 
   if (!selectedTournament) return null;
 
-  const tournamentName = tournamentLabel(selectedTournament, locale);
-  const isTestCup = selectedTournament.name === "Demo Test Cup";
+  const tournamentName = tournamentTitle(selectedTournament, locale);
   const rulesLabel =
     locale === "ar"
       ? standings?.standing_rules_label_ar
@@ -48,27 +47,19 @@ function TournamentGroupsContent() {
     locale === "ar"
       ? standings?.third_place_tiebreakers_ar
       : standings?.third_place_tiebreakers_en;
-  const showThirdPlaceRace =
-    (standings?.best_third_place_qualifiers ?? 0) > 0 &&
-    standings?.standing_rules === "fifa_world_cup";
+  const showThirdPlaceRace = (standings?.best_third_place_qualifiers ?? 0) > 0;
 
   return (
     <div>
       <h1 className="page-title mb-2">{t("tournamentGroupsTitle")}</h1>
       <p className="mb-6 font-medium text-night-700/70">
-        {tournamentName} ({selectedTournament.year}) —{" "}
+        {tournamentName} —{" "}
         {t("groupsConfigured", { count: cupGroups.length })}
       </p>
 
-      {isTestCup ? (
-        <div className="info-banner-fan">
-          <strong>{t("demoTestCup")}</strong> — {t("demoTestCupGroupsDesc")}
-        </div>
-      ) : (
-        <div className="info-banner-pitch">
-          <strong>{t("predictionRules")}</strong> {t("predictionRulesDesc")}
-        </div>
-      )}
+      <div className="info-banner-pitch">
+        <strong>{t("predictionRules")}</strong> {t("predictionRulesDesc")}
+      </div>
 
       {standings && rulesLabel && (
         <div className="card mt-6">

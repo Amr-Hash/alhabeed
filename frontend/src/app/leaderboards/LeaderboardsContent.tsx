@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 import { RequireTournament } from "@/components/RequireTournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 
 export default function LeaderboardsContent() {
   const { user, token, loading: authLoading } = useAuth();
@@ -46,7 +46,7 @@ export default function LeaderboardsContent() {
   if (authLoading || !user) return <div>{t("loading")}</div>;
 
   const tournamentName = selectedTournament
-    ? tournamentLabel(selectedTournament, locale)
+    ? tournamentTitle(selectedTournament, locale)
     : "";
 
   return (
@@ -55,7 +55,7 @@ export default function LeaderboardsContent() {
         <h1 className="page-title mb-2">{t("leaderboards")}</h1>
         <p className="mb-6 font-medium text-night-700/70">
           {selectedTournament
-            ? t("rankingsFor", { name: tournamentName, year: selectedTournament.year })
+            ? t("rankingsFor", { tournament: tournamentName })
             : ""}
         </p>
 

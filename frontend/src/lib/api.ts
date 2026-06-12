@@ -159,9 +159,36 @@ export interface CupGroupStandings {
   standings: GroupStandingRow[];
 }
 
+export interface StandingRuleSetSummary {
+  id: number;
+  slug: string;
+  name: string;
+  name_ar?: string;
+  competition_type: "world_cup" | "champions_league" | "other";
+  version: string;
+  engine: "fifa_world_cup" | "uefa_champions_league" | "simple";
+  qualifiers_per_group: number;
+  best_third_place_qualifiers: number;
+  is_active: boolean;
+}
+
+export interface StandingRuleSet extends StandingRuleSetSummary {
+  tiebreakers_en?: string[];
+  tiebreakers_ar?: string[];
+  third_place_tiebreakers_en?: string[];
+  third_place_tiebreakers_ar?: string[];
+  tournament_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface TournamentStandings {
   tournament_id: number;
   standing_rules: string;
+  standing_rule_set_id?: number | null;
+  standing_rule_set_slug?: string | null;
+  standing_rules_version?: string | null;
+  competition_type?: string | null;
   standing_rules_label_en: string;
   standing_rules_label_ar: string;
   tiebreakers_en: string[];
@@ -266,17 +293,108 @@ export interface GroupPodiumNotificationPayload {
   podium: NotificationPodiumEntry[];
 }
 
+export interface MatchKickoffReminderPayload {
+  match_id: number;
+  tournament_id: number;
+  home_team: string;
+  away_team: string;
+  home_team_ar?: string;
+  away_team_ar?: string;
+  kickoff_time: string;
+  has_prediction: boolean;
+  predicted_home_score: number | null;
+  predicted_away_score: number | null;
+  predicted_winner_team_id: number | null;
+  predicted_winner_name: string;
+  predicted_winner_name_ar?: string;
+}
+
 export interface AppNotification {
   id: number;
-  notification_type: "match_result" | "group_podium";
-  payload: MatchResultNotificationPayload | GroupPodiumNotificationPayload;
+  notification_type: "match_result" | "group_podium" | "match_kickoff_reminder";
+  payload:
+    | MatchResultNotificationPayload
+    | GroupPodiumNotificationPayload
+    | MatchKickoffReminderPayload;
   is_read: boolean;
   created_at: string;
+}
+
+export interface PushVapidPublicKeyResponse {
+  public_key: string;
+  configured: boolean;
 }
 
 export interface NotificationListResponse {
   unread_count: number;
   results: AppNotification[];
+}
+
+export interface LiveScoreEnvironment {
+  api_football_key_configured: boolean;
+  sportmonks_key_configured: boolean;
+  cron_secret_configured: boolean;
+  sync_window_open: boolean;
+  sync_window_start: string | null;
+  sync_window_end: string | null;
+  cron_schedule: string;
+}
+
+export interface LiveScoreMatchStats {
+  total: number;
+  scheduled: number;
+  live: number;
+  finished: number;
+  mapped_fixtures: number;
+  unmapped_active: number;
+  in_sync_window: number;
+}
+
+export interface LiveScoreUnmappedMatch {
+  id: number;
+  home_team: string;
+  away_team: string;
+  kickoff_time: string;
+  status: string;
+}
+
+export interface TournamentLiveScoreStatus {
+  tournament_id: number;
+  tournament_name: string;
+  tournament_name_ar?: string;
+  year: number;
+  is_active: boolean;
+  is_archived: boolean;
+  live_score_provider: "manual" | "api_football" | "sportmonks";
+  live_score_config: { league_id?: number; season?: number; season_id?: number };
+  health: "ready" | "warning" | "error" | "manual";
+  issues: string[];
+  matches: LiveScoreMatchStats;
+  unmapped_matches?: LiveScoreUnmappedMatch[];
+}
+
+export interface LiveScoreOverview {
+  environment: LiveScoreEnvironment;
+  summary: {
+    tournament_count: number;
+    auto_sync_tournament_count: number;
+    ready_count: number;
+    warning_count: number;
+    error_count: number;
+  };
+  tournaments: TournamentLiveScoreStatus[];
+}
+
+export interface LiveScoreTournamentStatusResponse {
+  environment: LiveScoreEnvironment;
+  tournament: TournamentLiveScoreStatus;
+}
+
+export interface LiveScoreSyncResult {
+  tournament_id: number;
+  updated: number;
+  skipped: number;
+  error?: string;
 }
 
 export interface Tournament {
@@ -287,6 +405,7 @@ export interface Tournament {
   start_date: string;
   end_date: string;
   standing_rules?: string;
+  standing_rule_set?: StandingRuleSetSummary | null;
   qualifiers_per_group?: number;
   is_active?: boolean;
   is_archived?: boolean;
@@ -294,6 +413,7 @@ export interface Tournament {
   live_score_config?: { league_id?: number; season?: number; season_id?: number };
   stage_count?: number;
   match_count?: number;
+  is_subscribed?: boolean;
   stages?: { id: number; name: string; name_ar?: string; order: number; stage_type: string }[];
   cup_groups?: CupGroup[];
 }
@@ -433,6 +553,19 @@ export const api = {
   getTournaments: (token: string) =>
     request<{ results?: Tournament[] } | Tournament[]>("/api/tournaments", {}, token),
 
+  getAvailableTournaments: (token: string) =>
+    request<Tournament[]>("/api/tournaments/available", {}, token),
+
+  subscribeTournament: (token: string, tournamentId: number) =>
+    request<Tournament>(
+      `/api/tournaments/${tournamentId}/subscribe`,
+      { method: "POST" },
+      token
+    ),
+
+  unsubscribeTournament: (token: string, tournamentId: number) =>
+    request<void>(`/api/tournaments/${tournamentId}/unsubscribe`, { method: "POST" }, token),
+
   getCupGroups: (token: string, tournamentId: number) =>
     request<CupGroup[]>(`/api/tournaments/${tournamentId}/cup-groups`, {}, token),
 
@@ -506,6 +639,62 @@ export const api = {
   adminGetTournament: (token: string, id: number) =>
     request<Tournament>(`/api/tournaments/admin/tournaments/${id}`, {}, token),
 
+  adminGetStandingRuleSets: (
+    token: string,
+    params?: { active?: boolean; competition_type?: string }
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.active) search.set("active", "1");
+    if (params?.competition_type) search.set("competition_type", params.competition_type);
+    const qs = search.toString();
+    return request<StandingRuleSet[] | { results: StandingRuleSet[] }>(
+      `/api/tournaments/admin/standing-rule-sets${qs ? `?${qs}` : ""}`,
+      {},
+      token
+    );
+  },
+
+  adminCreateStandingRuleSet: (
+    token: string,
+    data: {
+      slug: string;
+      name: string;
+      name_ar?: string;
+      competition_type: string;
+      version: string;
+      engine: string;
+      qualifiers_per_group?: number;
+      best_third_place_qualifiers?: number;
+      is_active?: boolean;
+    }
+  ) =>
+    request<StandingRuleSet>(
+      "/api/tournaments/admin/standing-rule-sets",
+      { method: "POST", body: JSON.stringify(data) },
+      token
+    ),
+
+  adminUpdateStandingRuleSet: (
+    token: string,
+    id: number,
+    data: Partial<{
+      slug: string;
+      name: string;
+      name_ar: string;
+      competition_type: string;
+      version: string;
+      engine: string;
+      qualifiers_per_group: number;
+      best_third_place_qualifiers: number;
+      is_active: boolean;
+    }>
+  ) =>
+    request<StandingRuleSet>(
+      `/api/tournaments/admin/standing-rule-sets/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+      token
+    ),
+
   adminCreateTournament: (
     token: string,
     data: {
@@ -514,6 +703,7 @@ export const api = {
       year: number;
       start_date: string;
       end_date: string;
+      standing_rule_set?: number;
       standing_rules?: string;
       qualifiers_per_group?: number;
       is_active?: boolean;
@@ -537,6 +727,7 @@ export const api = {
       year: number;
       start_date: string;
       end_date: string;
+      standing_rule_set: number | null;
       standing_rules: string;
       qualifiers_per_group: number;
       is_active: boolean;
@@ -552,9 +743,23 @@ export const api = {
     ),
 
   adminSyncLiveScores: (token: string, tournamentId: number) =>
-    request<{ tournament_id: number; updated: number; skipped: number }>(
+    request<LiveScoreSyncResult>(
       `/api/tournaments/admin/tournaments/${tournamentId}/sync-live-scores`,
       { method: "POST" },
+      token
+    ),
+
+  adminGetLiveScoreOverview: (token: string) =>
+    request<LiveScoreOverview>(
+      "/api/tournaments/admin/tournaments/live-score-overview",
+      {},
+      token
+    ),
+
+  adminGetTournamentLiveScoreStatus: (token: string, tournamentId: number) =>
+    request<LiveScoreTournamentStatusResponse>(
+      `/api/tournaments/admin/tournaments/${tournamentId}/live-score-status`,
+      {},
       token
     ),
 
@@ -763,6 +968,26 @@ export const api = {
     request<{ detail: string; updated: number }>(
       "/api/notifications/mark-all-read",
       { method: "POST" },
+      token
+    ),
+
+  getPushVapidPublicKey: () =>
+    request<PushVapidPublicKeyResponse>("/api/notifications/push/vapid-public-key"),
+
+  subscribePush: (
+    token: string,
+    body: { endpoint: string; p256dh: string; auth: string }
+  ) =>
+    request<{ detail: string; id: number }>(
+      "/api/notifications/push/subscribe",
+      { method: "POST", body: JSON.stringify(body) },
+      token
+    ),
+
+  unsubscribePush: (token: string, endpoint: string) =>
+    request<{ detail: string }>(
+      "/api/notifications/push/unsubscribe",
+      { method: "POST", body: JSON.stringify({ endpoint }) },
       token
     ),
 };

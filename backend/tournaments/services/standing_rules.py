@@ -1,6 +1,6 @@
 from tournaments.models import Tournament
 
-RULE_METADATA = {
+ENGINE_RULE_METADATA = {
     Tournament.StandingRules.FIFA_WORLD_CUP: {
         "label_en": "FIFA World Cup",
         "label_ar": "كأس العالم (فيفا)",
@@ -77,5 +77,11 @@ RULE_METADATA = {
 }
 
 
+# Backwards-compatible alias
+RULE_METADATA = ENGINE_RULE_METADATA
+
+
 def get_rule_metadata(rules_key: str) -> dict:
-    return RULE_METADATA.get(rules_key, RULE_METADATA[Tournament.StandingRules.SIMPLE])
+    return ENGINE_RULE_METADATA.get(
+        rules_key, ENGINE_RULE_METADATA[Tournament.StandingRules.SIMPLE]
+    )

@@ -82,9 +82,15 @@ docker compose exec backend python manage.py seed_data
 | Swagger Docs | http://localhost:8000/api/docs/ |
 | Django Admin | http://localhost:8000/admin/ |
 
-**Demo accounts** (seeded automatically on deploy):
-- Admin: `admin@alhabeed.com` or username `admin` / password `admin12345`
-- Demo user: `demo@alhabeed.com` / `demo12345`
+**Admin account** (seeded automatically on deploy):
+- `admin@alhabeed.com` or username `admin` / password `admin12345`
+
+To remove legacy demo data from an existing database:
+
+```bash
+cd backend
+python manage.py purge_demo_data
+```
 
 ## Local Development (without Docker)
 

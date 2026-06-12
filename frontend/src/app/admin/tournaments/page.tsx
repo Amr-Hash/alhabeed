@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { api, Tournament, unwrapList } from "@/lib/api";
+import { api, StandingRuleSet, Tournament, unwrapList } from "@/lib/api";
 import { bilingualAdminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -13,7 +13,8 @@ const emptyForm = {
   year: new Date().getFullYear(),
   start_date: "",
   end_date: "",
-  standing_rules: "fifa",
+  standing_rule_set_id: "",
+  standing_rules: "fifa_world_cup",
   qualifiers_per_group: 2,
   is_active: true,
   is_archived: false,
@@ -26,6 +27,7 @@ export default function AdminTournamentsPage() {
   const { token } = useAuth();
   const t = useT();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [ruleSets, setRuleSets] = useState<StandingRuleSet[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -34,9 +36,14 @@ export default function AdminTournamentsPage() {
   const load = useCallback(() => {
     if (!token) return;
     setError("");
-    api
-      .adminGetTournaments(token)
-      .then((data) => setTournaments(unwrapList(data)))
+    Promise.all([
+      api.adminGetTournaments(token),
+      api.adminGetStandingRuleSets(token, { active: true }),
+    ])
+      .then(([tournamentData, ruleSetData]) => {
+        setTournaments(unwrapList(tournamentData));
+        setRuleSets(unwrapList(ruleSetData));
+      })
       .catch((err) =>
         setError(err instanceof Error ? err.message : t("failedLoadTournaments"))
       );
@@ -54,14 +61,21 @@ export default function AdminTournamentsPage() {
     if (form.live_score_season) {
       config.season = Number(form.live_score_season);
     }
+    const selectedRuleSet = ruleSets.find(
+      (rules) => String(rules.id) === String(form.standing_rule_set_id)
+    );
     return {
       name: form.name,
       name_ar: form.name_ar,
       year: form.year,
       start_date: form.start_date,
       end_date: form.end_date,
-      standing_rules: form.standing_rules,
-      qualifiers_per_group: form.qualifiers_per_group,
+      standing_rule_set: form.standing_rule_set_id
+        ? Number(form.standing_rule_set_id)
+        : undefined,
+      standing_rules: selectedRuleSet?.engine ?? form.standing_rules,
+      qualifiers_per_group:
+        selectedRuleSet?.qualifiers_per_group ?? form.qualifiers_per_group,
       is_active: form.is_active,
       is_archived: form.is_archived,
       live_score_provider: form.live_score_provider,
@@ -122,7 +136,10 @@ export default function AdminTournamentsPage() {
       year: tournament.year,
       start_date: tournament.start_date,
       end_date: tournament.end_date,
-      standing_rules: tournament.standing_rules || "fifa",
+      standing_rule_set_id: tournament.standing_rule_set?.id
+        ? String(tournament.standing_rule_set.id)
+        : "",
+      standing_rules: tournament.standing_rules || "fifa_world_cup",
       qualifiers_per_group: tournament.qualifiers_per_group ?? 2,
       is_active: tournament.is_active ?? true,
       is_archived: tournament.is_archived ?? false,
@@ -208,31 +225,49 @@ export default function AdminTournamentsPage() {
               required
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">{t("adminStandingRules")}</label>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">{t("adminStandingRuleSet")}</label>
             <select
               className="input"
-              value={form.standing_rules}
-              onChange={(e) => setForm({ ...form, standing_rules: e.target.value })}
+              value={form.standing_rule_set_id}
+              onChange={(e) => {
+                const selected = ruleSets.find((rules) => String(rules.id) === e.target.value);
+                setForm({
+                  ...form,
+                  standing_rule_set_id: e.target.value,
+                  standing_rules: selected?.engine ?? form.standing_rules,
+                  qualifiers_per_group:
+                    selected?.qualifiers_per_group ?? form.qualifiers_per_group,
+                });
+              }}
+              required
             >
-              <option value="fifa">{t("adminStandingRulesFifa")}</option>
-              <option value="uefa">{t("adminStandingRulesUefa")}</option>
-              <option value="simple">{t("adminStandingRulesSimple")}</option>
+              <option value="">{t("adminSelectStandingRuleSet")}</option>
+              {ruleSets.map((rules) => (
+                <option key={rules.id} value={rules.id}>
+                  {rules.name} ({rules.version})
+                </option>
+              ))}
             </select>
+            <p className="mt-1 text-xs text-gray-500">
+              {t("adminStandingRuleSetHint")}{" "}
+              <a href="/admin/standing-rules" className="text-pitch-700 underline">
+                {t("adminStandingRuleSets")}
+              </a>
+            </p>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">{t("adminQualifiersPerGroup")}</label>
-            <input
-              className="input"
-              type="number"
-              min={1}
-              max={4}
-              value={form.qualifiers_per_group}
-              onChange={(e) =>
-                setForm({ ...form, qualifiers_per_group: Number(e.target.value) })
-              }
-            />
-          </div>
+          {form.standing_rule_set_id ? (
+            <div className="sm:col-span-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+              {t("adminQualifiersPerGroup")}: {form.qualifiers_per_group}
+              {ruleSets.find((r) => String(r.id) === form.standing_rule_set_id)
+                ?.best_third_place_qualifiers
+                ? ` · ${t("adminBestThirdPlaceQualifiers")}: ${
+                    ruleSets.find((r) => String(r.id) === form.standing_rule_set_id)
+                      ?.best_third_place_qualifiers
+                  }`
+                : ""}
+            </div>
+          ) : null}
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">{t("adminLiveScoreProvider")}</label>
             <select
@@ -319,6 +354,9 @@ export default function AdminTournamentsPage() {
               <p className="text-sm text-gray-500">
                 {tournament.start_date} → {tournament.end_date} · {tournament.match_count ?? 0}{" "}
                 {t("matches").toLowerCase()}
+                {tournament.standing_rule_set && (
+                  <> · {tournament.standing_rule_set.name}</>
+                )}
                 {tournament.live_score_provider && tournament.live_score_provider !== "manual" && (
                   <> · {tournament.live_score_provider}</>
                 )}

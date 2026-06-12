@@ -1,20 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { api, type AppNotification } from "@/lib/api";
+import { api, type AppNotification, type NotificationListResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n";
-import { formatNotificationText } from "@/lib/notificationText";
+import { formatNotificationText, getNotificationHref } from "@/lib/notificationText";
+import { useNotificationPolling } from "@/lib/useNotificationPolling";
 
 export default function NotificationsPage() {
   const { token, loading: authLoading } = useAuth();
   const t = useT();
   const { locale } = useLocale();
+  const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const applyNotificationData = useCallback((data: NotificationListResponse) => {
+    setItems(data.results);
+    setUnreadCount(data.unread_count);
+    setLoading(false);
+    setError(null);
+  }, []);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -22,18 +32,21 @@ export default function NotificationsPage() {
     setError(null);
     try {
       const data = await api.getNotifications(token, { limit: 100 });
-      setItems(data.results);
-      setUnreadCount(data.unread_count);
+      applyNotificationData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("tryAgain"));
-    } finally {
       setLoading(false);
     }
-  }, [token, t]);
+  }, [token, t, applyNotificationData]);
 
   useEffect(() => {
     if (!authLoading && token) load();
   }, [authLoading, token, load]);
+
+  useNotificationPolling(token, applyNotificationData, {
+    enabled: !authLoading && Boolean(token),
+    limit: 100,
+  });
 
   const markRead = async (id: number) => {
     if (!token) return;
@@ -91,6 +104,8 @@ export default function NotificationsPage() {
                 type="button"
                 onClick={() => {
                   if (!notification.is_read) markRead(notification.id);
+                  const href = getNotificationHref(notification);
+                  if (href) router.push(href);
                 }}
                 className={`fan-card w-full p-4 text-start transition ${
                   notification.is_read ? "opacity-80" : "ring-2 ring-gold-300/60"

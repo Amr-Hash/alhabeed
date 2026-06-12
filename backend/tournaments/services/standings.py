@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
 
 from tournaments.models import CupGroup, Match, Stage, Tournament
-from tournaments.services.standing_rules import get_rule_metadata
+from tournaments.services.standing_rule_sets import (
+    get_tournament_engine,
+    get_tournament_rule_metadata,
+)
 
 
 @dataclass
@@ -150,7 +153,7 @@ def _apply_best_third_place_qualifiers(
     groups: list[dict], tournament: Tournament
 ) -> list[dict]:
     """Mark the best third-placed teams across groups (FIFA World Cup 2026)."""
-    meta = get_rule_metadata(tournament.standing_rules)
+    meta = get_tournament_rule_metadata(tournament)
     slots = meta.get("best_third_place_qualifiers") or 0
     if slots <= 0:
         return groups
@@ -191,8 +194,8 @@ def build_cup_group_standings(cup_group: CupGroup, tournament: Tournament):
 
     matches = _group_matches(cup_group)
     all_stats = _stats_for_teams(team_ids, matches)
-    rules_key = tournament.standing_rules
-    meta = get_rule_metadata(rules_key)
+    rules_key = get_tournament_engine(tournament)
+    meta = get_tournament_rule_metadata(tournament)
     qualifiers = tournament.qualifiers_per_group or meta["qualifiers_per_group"]
 
     ordered_ids = sorted(
@@ -239,7 +242,8 @@ def build_cup_group_standings(cup_group: CupGroup, tournament: Tournament):
 
 
 def build_tournament_standings(tournament: Tournament):
-    meta = get_rule_metadata(tournament.standing_rules)
+    meta = get_tournament_rule_metadata(tournament)
+    engine = get_tournament_engine(tournament)
     groups_qs = (
         CupGroup.objects.filter(tournament=tournament)
         .prefetch_related("group_teams__team")
@@ -276,7 +280,11 @@ def build_tournament_standings(tournament: Tournament):
 
     return {
         "tournament_id": tournament.id,
-        "standing_rules": tournament.standing_rules,
+        "standing_rules": engine,
+        "standing_rule_set_id": meta.get("rule_set_id"),
+        "standing_rule_set_slug": meta.get("rule_set_slug"),
+        "standing_rules_version": meta.get("version"),
+        "competition_type": meta.get("competition_type"),
         "standing_rules_label_en": meta["label_en"],
         "standing_rules_label_ar": meta["label_ar"],
         "tiebreakers_en": meta["steps_en"],

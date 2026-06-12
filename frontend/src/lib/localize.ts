@@ -19,6 +19,30 @@ export function tournamentLabel(tournament: Tournament, locale: Locale): string 
   return localizedName(tournament, locale);
 }
 
+function tournamentNameIncludesYear(tournament: Tournament, locale: Locale): boolean {
+  const name = localizedName(tournament, locale);
+  return new RegExp(`\\b${tournament.year}\\b`).test(name);
+}
+
+/** True when the UI should show the year in a separate slot (name does not already include it). */
+export function showTournamentYearSeparately(
+  tournament: Tournament,
+  locale: Locale
+): boolean {
+  return !tournamentNameIncludesYear(tournament, locale);
+}
+
+/** Localized tournament name with year appended once (parentheses or space). */
+export function tournamentTitle(
+  tournament: Tournament,
+  locale: Locale,
+  style: "parens" | "space" = "parens"
+): string {
+  const name = localizedName(tournament, locale);
+  if (tournamentNameIncludesYear(tournament, locale)) return name;
+  return style === "space" ? `${name} ${tournament.year}` : `${name} (${tournament.year})`;
+}
+
 export function teamLabel(team: Team, locale: Locale): string {
   return localizedName(team, locale);
 }

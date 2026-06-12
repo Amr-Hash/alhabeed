@@ -14,6 +14,7 @@ import { bilingualAdminLabel, teamOptionLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/messages";
+import { LiveScoreStatusPanel } from "./LiveScoreStatusPanel";
 import { ScoreEntryPanel } from "./ScoreEntryPanel";
 
 interface Stage {
@@ -25,7 +26,7 @@ interface Stage {
   tournament?: number;
 }
 
-type Tab = "matches" | "groups" | "setup";
+type Tab = "matches" | "groups" | "setup" | "live";
 
 const STATUS_KEYS: Record<string, MessageKey> = {
   scheduled: "statusScheduled",
@@ -373,6 +374,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
 
   const tabs: { key: Tab; labelKey: MessageKey }[] = [
     { key: "matches", labelKey: "adminMatchesScores" },
+    { key: "live", labelKey: "adminLiveScores" },
     { key: "groups", labelKey: "adminGroupsTeamsTab" },
     { key: "setup", labelKey: "adminRoundsSetup" },
   ];
@@ -622,6 +624,10 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
             </>
           )}
         </div>
+      )}
+
+      {tab === "live" && (
+        <LiveScoreStatusPanel tournamentId={tournamentId} compact />
       )}
 
       {tab === "groups" && (

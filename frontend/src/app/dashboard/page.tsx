@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { MatchCard } from "@/components/MatchCard";
 import { RequireTournament } from "@/components/RequireTournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 
 function DashboardContent() {
   const { user, token } = useAuth();
@@ -73,7 +73,7 @@ function DashboardContent() {
   const hasPending = pendingCount > 0;
   const hasUpcoming = dashboard.upcoming_matches.length > 0;
   const hasResults = dashboard.recent_results.length > 0;
-  const tournamentName = tournamentLabel(selectedTournament!, locale);
+  const tournamentName = tournamentTitle(selectedTournament!, locale);
 
   return (
     <div>
@@ -81,7 +81,7 @@ function DashboardContent() {
         {t("welcomeBack", { name: user!.username })}
       </h1>
       <p className="mb-6 font-medium text-night-700/70">
-        {t("overviewFor", { name: tournamentName, year: selectedTournament!.year })}
+        {t("overviewFor", { tournament: tournamentName })}
       </p>
 
       <DashboardLiveHub

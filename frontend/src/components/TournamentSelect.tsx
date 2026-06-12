@@ -2,7 +2,7 @@
 
 import { useTournament } from "@/lib/tournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 
 export function TournamentSelect() {
   const { tournaments, selectedTournament, setSelectedTournamentId, loading } =
@@ -23,7 +23,7 @@ export function TournamentSelect() {
       >
         {tournaments.map((tournament) => (
           <option key={tournament.id} value={tournament.id}>
-            {tournamentLabel(tournament, locale)} ({tournament.year})
+            {tournamentTitle(tournament, locale)}
           </option>
         ))}
       </select>

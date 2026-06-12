@@ -1,6 +1,7 @@
 name: Live Score Sync
 
-# Vercel Hobby allows at most one cron per day; use GitHub Actions to poll every 5 minutes.
+# Vercel Hobby allows at most one cron per day; use GitHub Actions every 5 minutes for
+# live scores and match kickoff reminders (1 hour before kickoff).
 # Set CRON_SECRET in repo secrets (same value as alhabeed-api on Vercel).
 on:
   schedule:
@@ -22,3 +23,6 @@ jobs:
           curl -sf -X GET \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             "https://alhabeed-api.vercel.app/api/cron/sync-live-scores"
+          curl -sf -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://alhabeed-api.vercel.app/api/cron/send-match-reminders"

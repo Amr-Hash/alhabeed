@@ -1,16 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
-from groups.models import Group, GroupMember
 from tournaments.ar_translations import (
-    DEMO_TEST_CUP_AR,
     WC2026_TOURNAMENT_AR,
     cup_group_name_ar,
     stage_name_ar,
     team_name_ar,
 )
-from tournaments.models import CupGroup, CupGroupTeam, Match, Stage, Team, Tournament
-from tournaments.test_tournament_data import build_test_tournament_schedule
+from tournaments.models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team, Tournament
 from tournaments.wc2026_data import (
     WC2026_GROUP_MATCHES,
     WC2026_GROUPS,
@@ -30,13 +27,9 @@ STAGES_CONFIG = [
     ("Final", 9, Stage.StageType.KNOCKOUT),
 ]
 
-TEST_STAGES_CONFIG = [
-    ("Group Stage", 1, Stage.StageType.GROUP),
-]
-
 
 class Command(BaseCommand):
-    help = "Seed tournament data and demo accounts for الهبيد (Al-Habeed)"
+    help = "Seed tournament data and admin account for الهبيد (Al-Habeed)"
 
     def handle(self, *args, **options):
         self.stdout.write("Seeding database...")
@@ -62,37 +55,12 @@ class Command(BaseCommand):
         admin.set_password("admin12345")
         admin.save()
 
-        demo, _ = User.objects.get_or_create(
-            email="demo@alhabeed.com",
-            defaults={"username": "demo"},
-        )
-        demo.is_active = True
-        demo.set_password("demo12345")
-        demo.save()
-
         teams = self._seed_teams(WC2026_TEAMS)
         wc_count = self._seed_wc_tournament(teams)
-        test_schedule = build_test_tournament_schedule()
-        test_count = self._seed_test_tournament(teams, test_schedule)
-
-        group, _ = Group.objects.get_or_create(
-            name="Demo Predictors",
-            defaults={"description": "Sample prediction group", "created_by": demo},
-        )
-        GroupMember.objects.get_or_create(
-            group=group, user=demo, defaults={"role": GroupMember.Role.ADMIN}
-        )
-        GroupMember.objects.get_or_create(group=group, user=admin)
 
         self.stdout.write(self.style.SUCCESS("Seed data created successfully!"))
         self.stdout.write(f"FIFA World Cup (2026): {wc_count} group-stage matches")
-        self.stdout.write(
-            f"Demo Test Cup: {test_count} matches — "
-            f"{test_schedule['start_cairo'].strftime('%a %d %b %Y %H:%M')}–"
-            f"{test_schedule['end_cairo'].strftime('%H:%M')} Egypt time"
-        )
         self.stdout.write("Admin: admin@alhabeed.com / admin12345")
-        self.stdout.write("Demo:  demo@alhabeed.com / demo12345")
 
     def _seed_teams(self, team_rows):
         teams = {}
@@ -145,7 +113,24 @@ class Command(BaseCommand):
                 )
         return cup_groups
 
+    def _wc_standing_rule_set(self):
+        ruleset, _created = StandingRuleSet.objects.get_or_create(
+            slug="fifa-world-cup-2026",
+            defaults={
+                "name": "FIFA World Cup 2026",
+                "name_ar": WC2026_TOURNAMENT_AR,
+                "competition_type": StandingRuleSet.CompetitionType.WORLD_CUP,
+                "version": "2026",
+                "engine": Tournament.StandingRules.FIFA_WORLD_CUP,
+                "qualifiers_per_group": 2,
+                "best_third_place_qualifiers": 8,
+                "is_active": True,
+            },
+        )
+        return ruleset
+
     def _seed_wc_tournament(self, teams):
+        wc_rules = self._wc_standing_rule_set()
         tournament, created = Tournament.objects.update_or_create(
             name=WC2026_TOURNAMENT["name"],
             year=WC2026_TOURNAMENT["year"],
@@ -153,6 +138,7 @@ class Command(BaseCommand):
                 "name_ar": WC2026_TOURNAMENT_AR,
                 "start_date": WC2026_TOURNAMENT["start_date"],
                 "end_date": WC2026_TOURNAMENT["end_date"],
+                "standing_rule_set": wc_rules,
                 "standing_rules": Tournament.StandingRules.FIFA_WORLD_CUP,
                 "qualifiers_per_group": 2,
                 "live_score_provider": Tournament.LiveScoreProvider.API_FOOTBALL,
@@ -166,6 +152,9 @@ class Command(BaseCommand):
         if not tournament.name_ar:
             tournament.name_ar = WC2026_TOURNAMENT_AR
             update_fields.append("name_ar")
+        if tournament.standing_rule_set_id != wc_rules.id:
+            tournament.standing_rule_set = wc_rules
+            update_fields.append("standing_rule_set")
         if tournament.standing_rules != Tournament.StandingRules.FIFA_WORLD_CUP:
             tournament.standing_rules = Tournament.StandingRules.FIFA_WORLD_CUP
             update_fields.append("standing_rules")
@@ -193,44 +182,6 @@ class Command(BaseCommand):
                 from datetime import datetime
 
                 kickoff = datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
-            Match.objects.create(
-                tournament=tournament,
-                stage=stages[1],
-                cup_group=cup_groups[group_letter],
-                matchday=matchday,
-                home_team=teams[home_code],
-                away_team=teams[away_code],
-                kickoff_time=kickoff,
-            )
-        return Match.objects.filter(tournament=tournament).count()
-
-    def _seed_test_tournament(self, teams, schedule):
-        tournament, created = Tournament.objects.update_or_create(
-            name=schedule["name"],
-            year=schedule["year"],
-            defaults={
-                "name_ar": DEMO_TEST_CUP_AR,
-                "start_date": schedule["start_date"],
-                "end_date": schedule["end_date"],
-            },
-        )
-        update_fields = []
-        if created:
-            tournament.is_active = True
-            update_fields.append("is_active")
-        if not tournament.name_ar:
-            tournament.name_ar = DEMO_TEST_CUP_AR
-            update_fields.append("name_ar")
-        if update_fields:
-            tournament.save(update_fields=update_fields)
-
-        if Match.objects.filter(tournament=tournament).exists():
-            return Match.objects.filter(tournament=tournament).count()
-
-        stages = self._create_stages(tournament, TEST_STAGES_CONFIG)
-        cup_groups = self._create_cup_groups(tournament, schedule["groups"], teams)
-
-        for group_letter, matchday, home_code, away_code, kickoff in schedule["matches"]:
             Match.objects.create(
                 tournament=tournament,
                 stage=stages[1],

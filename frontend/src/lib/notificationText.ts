@@ -1,6 +1,7 @@
 import type {
   AppNotification,
   GroupPodiumNotificationPayload,
+  MatchKickoffReminderPayload,
   MatchResultNotificationPayload,
 } from "@/lib/api";
 import type { Locale } from "@/lib/messages";
@@ -79,6 +80,42 @@ function formatGroupPodium(
   return t("notificationPodium", { group: payload.group_name, podium: parts.join(" · ") });
 }
 
+function kickoffTeamName(
+  payload: MatchKickoffReminderPayload,
+  side: "home" | "away",
+  locale: Locale
+) {
+  if (locale === "ar") {
+    if (side === "home" && payload.home_team_ar) return payload.home_team_ar;
+    if (side === "away" && payload.away_team_ar) return payload.away_team_ar;
+  }
+  return side === "home" ? payload.home_team : payload.away_team;
+}
+
+function formatMatchKickoffReminder(
+  payload: MatchKickoffReminderPayload,
+  locale: Locale,
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string
+) {
+  const home = kickoffTeamName(payload, "home", locale);
+  const away = kickoffTeamName(payload, "away", locale);
+  if (payload.has_prediction) {
+    const pick = `${payload.predicted_home_score}-${payload.predicted_away_score}`;
+    return t("notificationKickoffWithPrediction", { home, away, pick });
+  }
+  return t("notificationKickoffNoPrediction", { home, away });
+}
+
+export function getNotificationHref(notification: AppNotification): string | null {
+  if (notification.notification_type === "match_kickoff_reminder") {
+    const payload = notification.payload as MatchKickoffReminderPayload;
+    return `/matches/${payload.match_id}`;
+  }
+  const payload = notification.payload as { match_id?: number };
+  if (payload.match_id) return `/matches/${payload.match_id}`;
+  return null;
+}
+
 export function formatNotificationText(
   notification: AppNotification,
   locale: Locale
@@ -95,6 +132,13 @@ export function formatNotificationText(
 
   if (notification.notification_type === "match_result") {
     return formatMatchResult(notification.payload as MatchResultNotificationPayload, locale, t);
+  }
+  if (notification.notification_type === "match_kickoff_reminder") {
+    return formatMatchKickoffReminder(
+      notification.payload as MatchKickoffReminderPayload,
+      locale,
+      t
+    );
   }
   return formatGroupPodium(notification.payload as GroupPodiumNotificationPayload, t);
 }

@@ -794,6 +794,12 @@ class NotificationTests(TestCase):
             predicted_home_score=0,
             predicted_away_score=1,
         )
+        from tournaments.models import TournamentSubscription
+
+        for member in (self.user, self.other, self.spectator):
+            TournamentSubscription.objects.create(
+                user=member, tournament=self.tournament
+            )
         self.admin_client = APIClient()
         self.admin_client.force_authenticate(user=self.admin)
         self.user_client = APIClient()

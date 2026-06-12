@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n";
 
 export default function HomeContent() {
   const { user, loading } = useAuth();
-  const { selectedTournament, loading: tournamentLoading } = useTournament();
+  const { tournaments, selectedTournament, loading: tournamentLoading } = useTournament();
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useT();
@@ -38,8 +38,12 @@ export default function HomeContent() {
     }
   }, [loading, tournamentLoading, user, selectedTournament, pickingTournament, router]);
 
+  const hasSubscriptions = tournaments.length > 0;
   const showPicker =
-    !loading && user && !isStaff(user) && (pickingTournament || !selectedTournament);
+    !loading &&
+    user &&
+    !isStaff(user) &&
+    (pickingTournament || !hasSubscriptions || !selectedTournament);
 
   return (
     <div className="flex flex-col items-center py-10 text-center sm:py-16">

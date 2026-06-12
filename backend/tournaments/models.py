@@ -1,4 +1,58 @@
+from django.conf import settings
 from django.db import models
+
+
+class StandingRuleSet(models.Model):
+    """Reusable group-standing and qualification rules (versioned per competition type)."""
+
+    class CompetitionType(models.TextChoices):
+        WORLD_CUP = "world_cup", "FIFA World Cup"
+        CHAMPIONS_LEAGUE = "champions_league", "UEFA Champions League"
+        OTHER = "other", "Other"
+
+    class Engine(models.TextChoices):
+        FIFA_WORLD_CUP = "fifa_world_cup", "FIFA World Cup tie-breakers"
+        UEFA_CHAMPIONS_LEAGUE = "uefa_champions_league", "UEFA Champions League tie-breakers"
+        SIMPLE = "simple", "Simple (points → GD → GF)"
+
+    slug = models.SlugField(max_length=64, unique=True)
+    name = models.CharField(max_length=200)
+    name_ar = models.CharField(max_length=200, blank=True, default="")
+    competition_type = models.CharField(
+        max_length=32,
+        choices=CompetitionType.choices,
+        default=CompetitionType.OTHER,
+    )
+    version = models.CharField(
+        max_length=32,
+        help_text="Rule-set version label, e.g. 2026 or 2024-25.",
+    )
+    engine = models.CharField(max_length=32, choices=Engine.choices)
+    qualifiers_per_group = models.PositiveSmallIntegerField(default=2)
+    best_third_place_qualifiers = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Best third-placed teams that advance (FIFA World Cup style).",
+    )
+    tiebreakers_en = models.JSONField(default=list, blank=True)
+    tiebreakers_ar = models.JSONField(default=list, blank=True)
+    third_place_tiebreakers_en = models.JSONField(default=list, blank=True)
+    third_place_tiebreakers_ar = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Only active rule sets can be assigned to new tournaments.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["competition_type", "-version", "name"]
+        indexes = [
+            models.Index(fields=["competition_type", "is_active"]),
+            models.Index(fields=["engine"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.version})"
 
 
 class Tournament(models.Model):
@@ -25,6 +79,14 @@ class Tournament(models.Model):
     qualifiers_per_group = models.PositiveSmallIntegerField(
         default=2,
         help_text="How many teams advance from each group (e.g. 2 for World Cup).",
+    )
+    standing_rule_set = models.ForeignKey(
+        StandingRuleSet,
+        on_delete=models.PROTECT,
+        related_name="tournaments",
+        null=True,
+        blank=True,
+        help_text="Versioned standing/qualification rules for this tournament.",
     )
     is_active = models.BooleanField(
         default=True,
@@ -54,6 +116,30 @@ class Tournament(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.year})"
+
+
+class TournamentSubscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tournament_subscriptions",
+    )
+    tournament = models.ForeignKey(
+        Tournament,
+        on_delete=models.CASCADE,
+        related_name="tournament_subscriptions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "tournament")
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["tournament", "user"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} → {self.tournament_id}"
 
 
 class Stage(models.Model):

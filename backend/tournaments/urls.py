@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AdminCupGroupViewSet,
     AdminMatchViewSet,
+    AdminStandingRuleSetViewSet,
     AdminTournamentViewSet,
     MatchViewSet,
     StageViewSet,
@@ -18,6 +19,9 @@ router.register("matches", MatchViewSet, basename="match")
 router.register("", TournamentViewSet, basename="tournament")
 
 admin_router = DefaultRouter(trailing_slash=False)
+admin_router.register(
+    "standing-rule-sets", AdminStandingRuleSetViewSet, basename="admin-standing-rule-set"
+)
 admin_router.register("cup-groups", AdminCupGroupViewSet, basename="admin-cup-group")
 admin_router.register("tournaments", AdminTournamentViewSet, basename="admin-tournament")
 admin_router.register("stages", StageViewSet, basename="admin-stage")

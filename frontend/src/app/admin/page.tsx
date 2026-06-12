@@ -78,6 +78,9 @@ export default function AdminOverviewPage() {
           <p className="text-night-700/70">{t("adminOverviewDesc")}</p>
         </div>
         <div className="flex gap-2">
+          <Link href="/admin/live-scores" className="btn-secondary text-sm">
+            {t("adminLiveScores")}
+          </Link>
           <Link href="/admin/teams" className="btn-secondary text-sm">
             {t("adminManageTeams")}
           </Link>

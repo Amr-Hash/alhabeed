@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
-from .models import CupGroup, CupGroupTeam, Match, Stage, Team, Tournament
+from tournaments.services.standing_rule_sets import apply_engine_defaults_to_ruleset
+
+from .models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team, Tournament
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -202,9 +204,99 @@ class MatchAdminUpdateSerializer(serializers.ModelSerializer):
         return match
 
 
+class StandingRuleSetSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StandingRuleSet
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "name_ar",
+            "competition_type",
+            "version",
+            "engine",
+            "qualifiers_per_group",
+            "best_third_place_qualifiers",
+            "is_active",
+        )
+
+
+class StandingRuleSetSerializer(serializers.ModelSerializer):
+    tournament_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = StandingRuleSet
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "name_ar",
+            "competition_type",
+            "version",
+            "engine",
+            "qualifiers_per_group",
+            "best_third_place_qualifiers",
+            "tiebreakers_en",
+            "tiebreakers_ar",
+            "third_place_tiebreakers_en",
+            "third_place_tiebreakers_ar",
+            "is_active",
+            "tournament_count",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at", "tournament_count")
+
+    def validate_slug(self, value):
+        qs = StandingRuleSet.objects.filter(slug=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A rule set with this slug already exists.")
+        return value
+
+    def create(self, validated_data):
+        ruleset = StandingRuleSet(**validated_data)
+        apply_engine_defaults_to_ruleset(ruleset)
+        ruleset.save()
+        return ruleset
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        apply_engine_defaults_to_ruleset(instance)
+        instance.save()
+        return instance
+
+
+class TournamentRulesMixin:
+    def _sync_rules_from_set(self, attrs):
+        ruleset = attrs.get("standing_rule_set")
+        if ruleset is None:
+            return attrs
+        if not ruleset.is_active:
+            creating = self.instance is None
+            changing = (
+                self.instance is not None
+                and self.instance.standing_rule_set_id != ruleset.id
+            )
+            if creating or changing:
+                raise serializers.ValidationError(
+                    {"standing_rule_set": "This rule set is inactive."}
+                )
+        attrs["standing_rules"] = ruleset.engine
+        attrs["qualifiers_per_group"] = ruleset.qualifiers_per_group
+        return attrs
+
+    def validate(self, attrs):
+        attrs = self._sync_rules_from_set(attrs)
+        return super().validate(attrs)
+
+
 class TournamentListSerializer(serializers.ModelSerializer):
     stage_count = serializers.IntegerField(source="stages.count", read_only=True)
     match_count = serializers.IntegerField(source="matches.count", read_only=True)
+    standing_rule_set = StandingRuleSetSummarySerializer(read_only=True)
 
     class Meta:
         model = Tournament
@@ -216,6 +308,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "standing_rules",
+            "standing_rule_set",
             "qualifiers_per_group",
             "is_active",
             "is_archived",
@@ -229,6 +322,7 @@ class TournamentListSerializer(serializers.ModelSerializer):
 class TournamentDetailSerializer(serializers.ModelSerializer):
     stages = StageSerializer(many=True, read_only=True)
     cup_groups = CupGroupSerializer(many=True, read_only=True)
+    standing_rule_set = StandingRuleSetSummarySerializer(read_only=True)
 
     class Meta:
         model = Tournament
@@ -240,6 +334,7 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "standing_rules",
+            "standing_rule_set",
             "qualifiers_per_group",
             "is_active",
             "is_archived",
@@ -250,7 +345,7 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
         )
 
 
-class TournamentCreateSerializer(serializers.ModelSerializer):
+class TournamentCreateSerializer(TournamentRulesMixin, serializers.ModelSerializer):
     class Meta:
         model = Tournament
         fields = (
@@ -261,6 +356,7 @@ class TournamentCreateSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "standing_rules",
+            "standing_rule_set",
             "qualifiers_per_group",
             "is_active",
             "is_archived",
@@ -268,6 +364,27 @@ class TournamentCreateSerializer(serializers.ModelSerializer):
             "live_score_config",
         )
         read_only_fields = ("id",)
+
+    def validate(self, attrs):
+        if not attrs.get("standing_rule_set") and not attrs.get("standing_rules"):
+            default = StandingRuleSet.objects.filter(
+                slug="fifa-world-cup-2026", is_active=True
+            ).first()
+            if default:
+                attrs["standing_rule_set"] = default
+        if attrs.get("standing_rule_set") and attrs.get("standing_rules"):
+            attrs.pop("standing_rules", None)
+        if attrs.get("standing_rule_set") and attrs.get("qualifiers_per_group"):
+            attrs.pop("qualifiers_per_group", None)
+        return super().validate(attrs)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.standing_rule_set_id:
+            data["standing_rule_set"] = StandingRuleSetSummarySerializer(
+                instance.standing_rule_set
+            ).data
+        return data
 
 
 class StageCreateSerializer(serializers.ModelSerializer):

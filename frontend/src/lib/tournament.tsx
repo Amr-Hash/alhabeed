@@ -16,6 +16,11 @@ const STORAGE_KEY = "selected_tournament_id";
 function pickDefaultTournament(list: Tournament[]): Tournament | null {
   const active = list.filter((t) => t.is_active !== false);
   if (!active.length) return null;
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    const savedTournament = active.find((t) => String(t.id) === saved);
+    if (savedTournament) return savedTournament;
+  }
   const chosen = [...active].sort((a, b) => b.year - a.year || b.id - a.id)[0];
   localStorage.setItem(STORAGE_KEY, String(chosen.id));
   return chosen;

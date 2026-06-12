@@ -9,7 +9,15 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from predictions.models import Prediction
-from tournaments.models import CupGroup, Match, Stage, Team, Tournament
+from tournaments.models import (
+    CupGroup,
+    Match,
+    Stage,
+    StandingRuleSet,
+    Team,
+    Tournament,
+    TournamentSubscription,
+)
 from tournaments.services.standing_rules import get_rule_metadata
 from tournaments.services.live_scores import (
     apply_live_match_update,
@@ -257,6 +265,7 @@ class GroupStandingsTests(TestCase):
                 team=self.teams[code],
                 order=order,
             )
+        TournamentSubscription.objects.create(user=self.user, tournament=self.tournament)
 
     def _finish(self, home_code, away_code, home_score, away_score, matchday=1):
         return Match.objects.create(
@@ -385,7 +394,7 @@ class GroupStandingsTests(TestCase):
             "best_third_place_qualifiers": 1,
         }
         with patch(
-            "tournaments.services.standings.get_rule_metadata",
+            "tournaments.services.standings.get_tournament_rule_metadata",
             return_value=fifa_meta,
         ):
             response = self.client.get(f"/api/tournaments/{self.tournament.id}/standings")
@@ -410,6 +419,134 @@ class GroupStandingsTests(TestCase):
         self.assertTrue(ranking[0]["qualifies"])
         self.assertEqual(ranking[1]["team"]["code"], "CCC")
         self.assertFalse(ranking[1]["qualifies"])
+
+
+class StandingRuleSetApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            username="rulesadmin",
+            email="rulesadmin@test.com",
+            password="pass12345",
+            is_staff=True,
+        )
+        self.ruleset = StandingRuleSet.objects.create(
+            slug="test-wc-2030",
+            name="World Cup 2030",
+            competition_type=StandingRuleSet.CompetitionType.WORLD_CUP,
+            version="2030",
+            engine=Tournament.StandingRules.FIFA_WORLD_CUP,
+            qualifiers_per_group=2,
+            best_third_place_qualifiers=8,
+            is_active=True,
+        )
+
+    def test_list_requires_staff(self):
+        response = self.client.get("/api/tournaments/admin/standing-rule-sets")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_admin_create_ruleset(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(
+            "/api/tournaments/admin/standing-rule-sets",
+            {
+                "slug": "ucl-2027",
+                "name": "UCL 2027",
+                "competition_type": "champions_league",
+                "version": "2027",
+                "engine": "uefa_champions_league",
+                "qualifiers_per_group": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data["tiebreakers_en"])
+
+    def test_tournament_create_with_ruleset(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(
+            "/api/tournaments/admin/tournaments",
+            {
+                "name": "WC 2030",
+                "year": 2030,
+                "start_date": "2030-06-01",
+                "end_date": "2030-07-15",
+                "standing_rule_set": self.ruleset.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        ruleset_data = response.data["standing_rule_set"]
+        ruleset_id = ruleset_data["id"] if isinstance(ruleset_data, dict) else ruleset_data
+        self.assertEqual(ruleset_id, self.ruleset.id)
+        self.assertEqual(response.data["standing_rules"], "fifa_world_cup")
+        self.assertEqual(response.data["qualifiers_per_group"], 2)
+
+
+class LiveScoreStatusTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            username="adminstatus",
+            email="adminstatus@test.com",
+            password="pass12345",
+            is_staff=True,
+        )
+        self.home = Team.objects.create(name="Egypt", code="EGS")
+        self.away = Team.objects.create(name="Morocco", code="MRS")
+        self.tournament = Tournament.objects.create(
+            name="Status Cup",
+            year=2026,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+            live_score_provider=Tournament.LiveScoreProvider.API_FOOTBALL,
+            live_score_config={"league_id": 1, "season": 2026},
+        )
+        self.stage = Stage.objects.create(
+            tournament=self.tournament,
+            name="MD1",
+            order=1,
+            stage_type=Stage.StageType.GROUP,
+        )
+        Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now(),
+            status=Match.Status.SCHEDULED,
+            external_fixture_id="12345",
+        )
+
+    def test_overview_requires_staff(self):
+        response = self.client.get(
+            "/api/tournaments/admin/tournaments/live-score-overview"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_overview_returns_environment_and_tournament_status(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            "/api/tournaments/admin/tournaments/live-score-overview"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["environment"]["api_football_key_configured"])
+        self.assertEqual(response.data["summary"]["tournament_count"], 1)
+        tournament = response.data["tournaments"][0]
+        self.assertEqual(tournament["tournament_id"], self.tournament.id)
+        self.assertEqual(tournament["matches"]["mapped_fixtures"], 1)
+        self.assertEqual(tournament["health"], "ready")
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": ""}, clear=False)
+    def test_detail_flags_missing_api_key(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            f"/api/tournaments/admin/tournaments/{self.tournament.id}/live-score-status"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("missing_api_key", response.data["tournament"]["issues"])
+        self.assertEqual(response.data["tournament"]["health"], "error")
 
 
 class LiveScoreSyncTests(TestCase):

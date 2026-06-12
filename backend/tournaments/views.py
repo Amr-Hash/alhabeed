@@ -1,10 +1,19 @@
 import os
 
+from django.db import models
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
-from .models import CupGroup, Match, Stage, Team, Tournament
+from .models import (
+    CupGroup,
+    Match,
+    Stage,
+    StandingRuleSet,
+    Team,
+    Tournament,
+    TournamentSubscription,
+)
 from .serializers import (
     CupGroupCreateSerializer,
     CupGroupSerializer,
@@ -13,6 +22,7 @@ from .serializers import (
     MatchSerializer,
     StageCreateSerializer,
     StageSerializer,
+    StandingRuleSetSerializer,
     TeamCreateSerializer,
     TeamSerializer,
     TournamentCreateSerializer,
@@ -27,17 +37,74 @@ from worldcup.permissions import IsAdminUser
 class TournamentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tournament.objects.filter(is_archived=False, is_active=True)
     permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == "retrieve":
             return TournamentDetailSerializer
         return TournamentListSerializer
 
+    def _active_tournaments(self):
+        return Tournament.objects.filter(is_archived=False, is_active=True)
+
+    def _subscribed_tournaments(self, user):
+        return (
+            self._active_tournaments()
+            .filter(tournament_subscriptions__user=user)
+            .distinct()
+            .prefetch_related("stages", "cup_groups__group_teams__team", "standing_rule_set")
+        )
+
     def get_queryset(self):
-        qs = Tournament.objects.all()
-        if not self.request.user.is_staff:
-            qs = qs.filter(is_archived=False, is_active=True)
-        return qs.prefetch_related("stages", "cup_groups__group_teams__team")
+        user = self.request.user
+        if user.is_staff:
+            return Tournament.objects.all().prefetch_related(
+                "stages", "cup_groups__group_teams__team", "standing_rule_set"
+            )
+        return self._subscribed_tournaments(user)
+
+    @action(detail=False, methods=["get"], url_path="available")
+    def available(self, request):
+        """Active tournaments the user can subscribe to."""
+        qs = (
+            self._active_tournaments()
+            .prefetch_related("standing_rule_set")
+            .order_by("-year", "name")
+        )
+        subscribed_ids = set(
+            TournamentSubscription.objects.filter(user=request.user).values_list(
+                "tournament_id", flat=True
+            )
+        )
+        data = TournamentListSerializer(qs, many=True).data
+        for row in data:
+            row["is_subscribed"] = row["id"] in subscribed_ids
+        return Response(data)
+
+    @action(detail=True, methods=["post"], url_path="subscribe")
+    def subscribe(self, request, pk=None):
+        from tournaments.services.subscriptions import subscribe_user_to_tournament
+
+        try:
+            tournament = self._active_tournaments().get(pk=pk)
+        except Tournament.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        subscribe_user_to_tournament(request.user, tournament)
+        return Response(
+            TournamentListSerializer(
+                tournament, context=self.get_serializer_context()
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="unsubscribe")
+    def unsubscribe(self, request, pk=None):
+        deleted, _ = TournamentSubscription.objects.filter(
+            user=request.user, tournament_id=pk
+        ).delete()
+        if not deleted:
+            return Response({"detail": "Not subscribed."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="cup-groups")
     def cup_groups(self, request, pk=None):
@@ -68,6 +135,29 @@ class AdminTournamentViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return TournamentListSerializer
         return TournamentCreateSerializer
+
+    @action(detail=False, methods=["get"], url_path="live-score-overview")
+    def live_score_overview(self, request):
+        from tournaments.services.live_score_status import get_live_score_overview
+
+        return Response(get_live_score_overview())
+
+    @action(detail=True, methods=["get"], url_path="live-score-status")
+    def live_score_status(self, request, pk=None):
+        from tournaments.services.live_score_status import (
+            get_global_live_score_environment,
+            get_tournament_live_score_status,
+        )
+
+        tournament = self.get_object()
+        return Response(
+            {
+                "environment": get_global_live_score_environment(),
+                "tournament": get_tournament_live_score_status(
+                    tournament, detailed=True
+                ),
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="sync-live-scores")
     def sync_live_scores(self, request, pk=None):
@@ -127,6 +217,24 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(cup_group__name=cup_group.upper())
         if status_filter:
             qs = qs.filter(status=status_filter)
+        return qs
+
+
+class AdminStandingRuleSetViewSet(viewsets.ModelViewSet):
+    queryset = StandingRuleSet.objects.annotate(
+        tournament_count=models.Count("tournaments", distinct=True)
+    )
+    serializer_class = StandingRuleSetSerializer
+    permission_classes = (permissions.IsAuthenticated, IsAdminUser)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        active_only = self.request.query_params.get("active") == "1"
+        competition_type = self.request.query_params.get("competition_type")
+        if active_only:
+            qs = qs.filter(is_active=True)
+        if competition_type:
+            qs = qs.filter(competition_type=competition_type)
         return qs
 
 

@@ -10,7 +10,7 @@ import { MatchCard } from "@/components/MatchCard";
 import { EmptyState } from "@/components/EmptyState";
 import { RequireTournament } from "@/components/RequireTournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 import { MATCHDAY_SECTION_CLASS } from "@/lib/theme";
 
 function MatchesContent() {
@@ -64,8 +64,7 @@ function MatchesContent() {
   if (authLoading || !user) return <div>{t("loading")}</div>;
   if (!selectedTournament) return null;
 
-  const isTestCup = selectedTournament.name === "Demo Test Cup";
-  const tournamentName = tournamentLabel(selectedTournament, locale);
+  const tournamentName = tournamentTitle(selectedTournament, locale);
   const showGrouped = !matchdayFilter && matches.some((m) => m.matchday);
   const tournamentQuery = `tournament=${selectedTournament.id}`;
   const baseQuery = [tournamentQuery, cupGroupFilter ? `cup_group=${cupGroupFilter}` : ""]
@@ -76,14 +75,8 @@ function MatchesContent() {
     <div>
       <h1 className="page-title mb-2">{t("matches")}</h1>
       <p className="mb-4 text-gray-600">
-        {tournamentName} ({selectedTournament.year}) — {t("fixtures", { count: matches.length })}
+        {tournamentName} — {t("fixtures", { count: matches.length })}
       </p>
-
-      {isTestCup && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <strong>{t("demoTestCup")}</strong> — {t("demoTestCupMatchesDesc")}
-        </div>
-      )}
 
       <div className="mb-6 flex flex-wrap gap-2">
         <FilterLink

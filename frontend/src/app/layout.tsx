@@ -7,6 +7,7 @@ import { LocaleProvider } from "@/lib/i18n";
 import { TournamentProvider } from "@/lib/tournament";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Navbar } from "@/components/Navbar";
+import { PushNotificationRegistrar } from "@/components/PushNotificationRegistrar";
 import { PwaProvider } from "@/components/PwaProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { StaffGuard } from "@/components/StaffGuard";
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </StaffGuard>
               <MobileBottomNav />
               <PwaProvider />
+              <PushNotificationRegistrar />
               <ServiceWorkerRegister />
             </TournamentProvider>
           </AuthProvider>

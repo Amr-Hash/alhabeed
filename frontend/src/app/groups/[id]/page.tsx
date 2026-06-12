@@ -21,7 +21,7 @@ import { GroupPredictionsPanel } from "@/components/GroupPredictionsPanel";
 import { LeaderboardTable } from "@/components/LeaderboardTable";
 import { PageTabs } from "@/components/PageTabs";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 
 type Tab = "overview" | "predictions" | "members";
 
@@ -164,7 +164,7 @@ function GroupDetailContent() {
                   </p>
                   {selectedTournament && (
                     <p className="mt-1 text-sm text-white/70">
-                      {tournamentLabel(selectedTournament, locale)} {selectedTournament.year}
+                      {tournamentTitle(selectedTournament, locale, "space")}
                     </p>
                   )}
                 </div>
@@ -328,8 +328,7 @@ function GroupDetailContent() {
               <>
                 <p className="mb-4 text-sm text-gray-600">
                   {t("groupPredictionsFor", {
-                    name: tournamentLabel(selectedTournament, locale),
-                    year: selectedTournament.year,
+                    tournament: tournamentTitle(selectedTournament, locale),
                   })}
                 </p>
                 {!predictionsData || predictionsData.matches.length === 0 ? (

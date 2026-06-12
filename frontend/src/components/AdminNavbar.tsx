@@ -10,6 +10,12 @@ import { useT } from "@/lib/i18n";
 
 const LINKS = [
   { href: "/admin", labelKey: "adminTournaments" as const, prefix: "/admin/tournaments" },
+  { href: "/admin/live-scores", labelKey: "adminLiveScores" as const, prefix: "/admin/live-scores" },
+  {
+    href: "/admin/standing-rules",
+    labelKey: "adminStandingRuleSets" as const,
+    prefix: "/admin/standing-rules",
+  },
   { href: "/admin/teams", labelKey: "adminTeams" as const, prefix: "/admin/teams" },
   { href: "/admin/users", labelKey: "adminUsers" as const, prefix: "/admin/users" },
   { href: "/admin/groups", labelKey: "adminGroups" as const, prefix: "/admin/groups" },

@@ -1,8 +1,6 @@
 """Arabic display names for seeded tournament data."""
 
 WC2026_TOURNAMENT_AR = "كأس العالم 2026"
-DEMO_TEST_CUP_AR = "كأس التجربة"
-
 STAGE_NAMES_AR = {
     "Group Stage": "مرحلة المجموعات",
     "Group Stage — Matchday 1": "مرحلة المجموعات — الجولة 1",

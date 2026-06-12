@@ -7,6 +7,7 @@ from predictions.services.leaderboard import (
     tournament_groups_with_members,
 )
 from tournaments.models import Match
+from tournaments.services.subscriptions import subscribed_user_ids_for_tournament
 
 
 def _match_result_payload(match, prediction, points_awarded, before_global, after_global, group_rank_changes):
@@ -86,8 +87,12 @@ def process_match_scoring_notifications(
         for row in Prediction.objects.filter(match=match).select_related("user")
     }
 
+    subscribed_user_ids = subscribed_user_ids_for_tournament(tournament_id)
+
     for result in scoring_results:
         user_id = result["user_id"]
+        if user_id not in subscribed_user_ids:
+            continue
         prediction = predictions_by_user.get(user_id)
         if not prediction:
             continue
@@ -138,6 +143,8 @@ def process_match_scoring_notifications(
         )
         dedup_key = f"group_podium:{group_id}:{match.id}"
         for member_id in member_ids:
+            if member_id not in subscribed_user_ids:
+                continue
             _upsert_notification(
                 member_id,
                 Notification.Type.GROUP_PODIUM,

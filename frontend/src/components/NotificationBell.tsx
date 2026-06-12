@@ -1,40 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type AppNotification } from "@/lib/api";
+import { api, type AppNotification, type NotificationListResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLocale, useT } from "@/lib/i18n";
-import { formatNotificationText } from "@/lib/notificationText";
+import { formatNotificationText, getNotificationHref } from "@/lib/notificationText";
+import { useNotificationPolling } from "@/lib/useNotificationPolling";
 
 export function NotificationBell() {
   const { token } = useAuth();
   const t = useT();
   const { locale } = useLocale();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const applyNotificationData = useCallback((data: NotificationListResponse) => {
+    setItems(data.results);
+    setUnreadCount(data.unread_count);
+    setLoading(false);
+  }, []);
+
   const loadNotifications = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
       const data = await api.getNotifications(token, { limit: 8 });
-      setItems(data.results);
-      setUnreadCount(data.unread_count);
+      applyNotificationData(data);
     } catch {
       setItems([]);
       setUnreadCount(0);
-    } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, applyNotificationData]);
 
-  useEffect(() => {
-    loadNotifications();
-  }, [loadNotifications]);
+  useNotificationPolling(token, applyNotificationData, { limit: 8 });
 
   useEffect(() => {
     function onClickOutside(event: MouseEvent) {
@@ -110,6 +115,11 @@ export function NotificationBell() {
                       type="button"
                       onClick={() => {
                         if (!notification.is_read) markRead(notification.id);
+                        const href = getNotificationHref(notification);
+                        if (href) {
+                          setOpen(false);
+                          router.push(href);
+                        }
                       }}
                       className={`w-full px-4 py-3 text-start text-sm transition hover:bg-white/5 ${
                         notification.is_read ? "text-white/70" : "text-white"

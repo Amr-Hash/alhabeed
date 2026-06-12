@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTournament } from "@/lib/tournament";
 import { useLocale, useT } from "@/lib/i18n";
-import { tournamentLabel } from "@/lib/localize";
+import { tournamentTitle } from "@/lib/localize";
 
 export function TournamentSwitcher({ variant = "light" }: { variant?: "light" | "dark" }) {
   const router = useRouter();
@@ -39,7 +39,7 @@ export function TournamentSwitcher({ variant = "light" }: { variant?: "light" | 
           isDark ? "bg-pitch-600/40 text-pitch-100" : "bg-pitch-100 text-pitch-800"
         }`}
       >
-        {tournamentLabel(selectedTournament, locale)} {selectedTournament.year}
+        {tournamentTitle(selectedTournament, locale, "space")}
       </span>
     );
   }
@@ -61,7 +61,7 @@ export function TournamentSwitcher({ variant = "light" }: { variant?: "light" | 
         {!selectedTournament && <option value="">{t("chooseTournament")}</option>}
         {active.map((tournament) => (
           <option key={tournament.id} value={tournament.id}>
-            {tournamentLabel(tournament, locale)} {tournament.year}
+            {tournamentTitle(tournament, locale, "space")}
           </option>
         ))}
       </select>
