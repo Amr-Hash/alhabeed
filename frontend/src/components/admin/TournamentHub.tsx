@@ -396,6 +396,36 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                 </span>
               )}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2 text-sm">
+              {tournament.standing_rule_set ? (
+                <span className="rounded-full bg-pitch-50 px-2.5 py-1 font-medium text-pitch-800">
+                  {t("adminStandingRuleSet")}: {bilingualAdminLabel(tournament.standing_rule_set)} (
+                  {tournament.standing_rule_set.version})
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+                  {t("adminStandingRuleSet")}: {t("adminSelectStandingRuleSet")}
+                </span>
+              )}
+              <span className="rounded-full bg-royal-50 px-2.5 py-1 font-medium text-royal-800">
+                {t("adminLiveScoreProvider")}:{" "}
+                {tournament.live_score_provider === "api_football"
+                  ? t("adminLiveScoreApiFootball")
+                  : tournament.live_score_provider === "sportmonks"
+                    ? t("adminLiveScoreSportmonks")
+                    : t("adminLiveScoreManual")}
+                {tournament.live_score_provider !== "manual" &&
+                tournament.live_score_config?.league_id ? (
+                  <>
+                    {" "}
+                    · {t("adminLiveScoreLeagueId")} {tournament.live_score_config.league_id}
+                    {tournament.live_score_config.season
+                      ? ` · ${t("adminLiveScoreSeason")} ${tournament.live_score_config.season}`
+                      : ""}
+                  </>
+                ) : null}
+              </span>
+            </div>
           </div>
           <div className="flex gap-4 text-sm text-gray-600">
             <span>{t("adminRoundsCount", { count: stages.length })}</span>

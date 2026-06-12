@@ -126,8 +126,9 @@ class TournamentViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class AdminTournamentViewSet(viewsets.ModelViewSet):
-    queryset = Tournament.objects.all()
+    queryset = Tournament.objects.select_related("standing_rule_set").all()
     permission_classes = (permissions.IsAuthenticated, IsAdminUser)
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -226,6 +227,7 @@ class AdminStandingRuleSetViewSet(viewsets.ModelViewSet):
     )
     serializer_class = StandingRuleSetSerializer
     permission_classes = (permissions.IsAuthenticated, IsAdminUser)
+    pagination_class = None
 
     def get_queryset(self):
         qs = super().get_queryset()

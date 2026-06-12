@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
-from tournaments.services.standing_rule_sets import apply_engine_defaults_to_ruleset
+from tournaments.services.standing_rule_sets import (
+    WC_RULESET_SLUG,
+    apply_engine_defaults_to_ruleset,
+)
 
 from .models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team, Tournament
 
@@ -368,7 +371,7 @@ class TournamentCreateSerializer(TournamentRulesMixin, serializers.ModelSerializ
     def validate(self, attrs):
         if not attrs.get("standing_rule_set") and not attrs.get("standing_rules"):
             default = StandingRuleSet.objects.filter(
-                slug="fifa-world-cup-2026", is_active=True
+                slug=WC_RULESET_SLUG, is_active=True
             ).first()
             if default:
                 attrs["standing_rule_set"] = default

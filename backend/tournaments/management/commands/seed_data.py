@@ -7,7 +7,11 @@ from tournaments.ar_translations import (
     stage_name_ar,
     team_name_ar,
 )
-from tournaments.models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team, Tournament
+from tournaments.models import CupGroup, CupGroupTeam, Match, Stage, Team, Tournament
+from tournaments.services.standing_rule_sets import (
+    sync_builtin_rule_sets,
+    sync_world_cup_tournaments,
+)
 from tournaments.wc2026_data import (
     WC2026_GROUP_MATCHES,
     WC2026_GROUPS,
@@ -103,24 +107,8 @@ class Command(BaseCommand):
                 )
         return cup_groups
 
-    def _wc_standing_rule_set(self):
-        ruleset, _created = StandingRuleSet.objects.get_or_create(
-            slug="fifa-world-cup-2026",
-            defaults={
-                "name": "FIFA World Cup 2026",
-                "name_ar": WC2026_TOURNAMENT_AR,
-                "competition_type": StandingRuleSet.CompetitionType.WORLD_CUP,
-                "version": "2026",
-                "engine": Tournament.StandingRules.FIFA_WORLD_CUP,
-                "qualifiers_per_group": 2,
-                "best_third_place_qualifiers": 8,
-                "is_active": True,
-            },
-        )
-        return ruleset
-
     def _seed_wc_tournament(self, teams):
-        wc_rules = self._wc_standing_rule_set()
+        sync_builtin_rule_sets()
         tournament, created = Tournament.objects.update_or_create(
             name=WC2026_TOURNAMENT["name"],
             year=WC2026_TOURNAMENT["year"],
@@ -128,11 +116,6 @@ class Command(BaseCommand):
                 "name_ar": WC2026_TOURNAMENT_AR,
                 "start_date": WC2026_TOURNAMENT["start_date"],
                 "end_date": WC2026_TOURNAMENT["end_date"],
-                "standing_rule_set": wc_rules,
-                "standing_rules": Tournament.StandingRules.FIFA_WORLD_CUP,
-                "qualifiers_per_group": 2,
-                "live_score_provider": Tournament.LiveScoreProvider.API_FOOTBALL,
-                "live_score_config": {"league_id": 1, "season": 2026},
             },
         )
         update_fields = []
@@ -142,24 +125,10 @@ class Command(BaseCommand):
         if not tournament.name_ar:
             tournament.name_ar = WC2026_TOURNAMENT_AR
             update_fields.append("name_ar")
-        if tournament.standing_rule_set_id != wc_rules.id:
-            tournament.standing_rule_set = wc_rules
-            update_fields.append("standing_rule_set")
-        if tournament.standing_rules != Tournament.StandingRules.FIFA_WORLD_CUP:
-            tournament.standing_rules = Tournament.StandingRules.FIFA_WORLD_CUP
-            update_fields.append("standing_rules")
-        if tournament.qualifiers_per_group != 2:
-            tournament.qualifiers_per_group = 2
-            update_fields.append("qualifiers_per_group")
-        if tournament.live_score_provider != Tournament.LiveScoreProvider.API_FOOTBALL:
-            tournament.live_score_provider = Tournament.LiveScoreProvider.API_FOOTBALL
-            update_fields.append("live_score_provider")
-        wc_config = {"league_id": 1, "season": 2026}
-        if tournament.live_score_config != wc_config:
-            tournament.live_score_config = wc_config
-            update_fields.append("live_score_config")
         if update_fields:
             tournament.save(update_fields=update_fields)
+        sync_world_cup_tournaments()
+        tournament.refresh_from_db()
 
         if Match.objects.filter(tournament=tournament).exists():
             return Match.objects.filter(tournament=tournament).count()

@@ -11,6 +11,10 @@ def main():
             stderr=subprocess.STDOUT,
         )
         subprocess.check_call(
+            [sys.executable, "manage.py", "sync_standing_rule_sets"],
+            stderr=subprocess.STDOUT,
+        )
+        subprocess.check_call(
             [sys.executable, "manage.py", "sync_wc2026_kickoffs"],
             stderr=subprocess.STDOUT,
         )

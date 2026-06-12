@@ -128,6 +128,14 @@ export default function AdminTournamentsPage() {
     }
   }
 
+  function resolveRuleSetId(tournament: Tournament): string {
+    if (tournament.standing_rule_set?.id) {
+      return String(tournament.standing_rule_set.id);
+    }
+    const matched = ruleSets.find((rules) => rules.engine === tournament.standing_rules);
+    return matched ? String(matched.id) : "";
+  }
+
   function startEdit(tournament: Tournament) {
     setEditingId(tournament.id);
     setForm({
@@ -136,9 +144,7 @@ export default function AdminTournamentsPage() {
       year: tournament.year,
       start_date: tournament.start_date,
       end_date: tournament.end_date,
-      standing_rule_set_id: tournament.standing_rule_set?.id
-        ? String(tournament.standing_rule_set.id)
-        : "",
+      standing_rule_set_id: resolveRuleSetId(tournament),
       standing_rules: tournament.standing_rules || "fifa_world_cup",
       qualifiers_per_group: tournament.qualifiers_per_group ?? 2,
       is_active: tournament.is_active ?? true,

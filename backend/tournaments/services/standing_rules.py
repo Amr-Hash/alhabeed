@@ -2,8 +2,8 @@ from tournaments.models import Tournament
 
 ENGINE_RULE_METADATA = {
     Tournament.StandingRules.FIFA_WORLD_CUP: {
-        "label_en": "FIFA World Cup",
-        "label_ar": "كأس العالم (فيفا)",
+        "label_en": "FIFA World Cup (48 teams)",
+        "label_ar": "كأس العالم (48 منتخباً)",
         "qualifiers_per_group": 2,
         # 12 groups × top 2 (24) + best 8 third-placed teams = 32 in the round of 32
         "best_third_place_qualifiers": 8,
