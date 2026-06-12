@@ -72,8 +72,8 @@ function verifyToken(token) {
   console.log(`Verified Vercel token for: ${username || "unknown user"}`);
 }
 
-function setGitHubSecret(token) {
-  const result = spawnSync("gh", ["secret", "set", "VERCEL_TOKEN"], {
+function setGitHubSecret(token, extraArgs = []) {
+  const result = spawnSync("gh", ["secret", "set", "VERCEL_TOKEN", ...extraArgs], {
     input: token,
     encoding: "utf8",
     shell: true,
@@ -85,9 +85,17 @@ function setGitHubSecret(token) {
     }
     process.exit(1);
   }
-  console.log("Updated GitHub Actions secret: VERCEL_TOKEN");
+}
+
+function syncGitHubSecrets(token) {
+  // Repository secret is used by deploy jobs (environment secrets override it if present).
+  setGitHubSecret(token);
+  console.log("Updated repository secret: VERCEL_TOKEN");
 }
 
 const token = resolveToken();
 verifyToken(token);
-setGitHubSecret(token);
+syncGitHubSecrets(token);
+console.log(
+  "If deploy jobs use GitHub environments, do not add separate VERCEL_TOKEN secrets there unless you keep them in sync."
+);

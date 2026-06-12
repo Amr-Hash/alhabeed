@@ -12,13 +12,18 @@ fi
 
 TEAM_SCOPE="${VERCEL_ORG_ID:-${VERCEL_TEAM_SLUG:-}}"
 
-if ! USER="$(npx vercel@latest whoami --token "$VERCEL_TOKEN" 2>/dev/null | tail -n1)"; then
+WHOAMI_LOG="$(mktemp)"
+trap 'rm -f "$WHOAMI_LOG"' EXIT
+
+if ! npx vercel@latest whoami --token "$VERCEL_TOKEN" >"$WHOAMI_LOG" 2>&1; then
   echo "::error::VERCEL_TOKEN is invalid or expired."
-  echo "Create a classic token at https://vercel.com/account/tokens (OAuth session tokens from the CLI may not work in CI)."
-  echo "Then run: node scripts/sync-vercel-ci-secret.mjs"
+  cat "$WHOAMI_LOG"
+  echo "Create a classic token at https://vercel.com/account/tokens, then run:"
+  echo "  VERCEL_TOKEN=<token> node scripts/sync-vercel-ci-secret.mjs"
   exit 1
 fi
 
+USER="$(tail -n1 "$WHOAMI_LOG" | tr -d '\r')"
 echo "Vercel token valid for: ${USER}"
 
 if [ -n "$TEAM_SCOPE" ]; then
