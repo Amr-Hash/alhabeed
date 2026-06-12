@@ -374,12 +374,7 @@ export default function AdminTournamentsPage() {
               type="number"
               value={form.year}
               onChange={(e) => {
-                const year = Number(e.target.value);
-                setForm(
-                  form.competition_type === "world_cup"
-                    ? { ...form, year, live_score_season: String(year) }
-                    : { ...form, year }
-                );
+                setForm({ ...form, year: Number(e.target.value) });
               }}
               required
             />
