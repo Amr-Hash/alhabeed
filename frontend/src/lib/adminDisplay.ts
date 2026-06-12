@@ -1,15 +1,17 @@
-import type { NamedEntity } from "./localize";
+import { localizedName, type NamedEntity } from "./localize";
+import type { Locale } from "./messages";
 
-/** Show English and Arabic together in admin lists. */
-export function bilingualAdminLabel(entity: NamedEntity | null | undefined): string {
-  if (!entity) return "";
-  if (entity.name_ar && entity.name_ar.trim() && entity.name_ar !== entity.name) {
-    return `${entity.name} · ${entity.name_ar}`;
-  }
-  return entity.name;
+/** Single localized label for admin lists (falls back to English when Arabic is missing). */
+export function adminLabel(
+  entity: NamedEntity | null | undefined,
+  locale: Locale
+): string {
+  return localizedName(entity, locale);
 }
 
-export function teamOptionLabel(team: NamedEntity & { code: string }): string {
-  const name = bilingualAdminLabel(team);
-  return `${team.code} — ${name}`;
+export function teamOptionLabel(
+  team: NamedEntity & { code: string },
+  locale: Locale
+): string {
+  return `${team.code} — ${adminLabel(team, locale)}`;
 }

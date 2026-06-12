@@ -2,8 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { api, Match } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
-import { useT } from "@/lib/i18n";
+import { adminLabel } from "@/lib/adminDisplay";
+import { useLocale, useT } from "@/lib/i18n";
 
 interface ScoreDraft {
   home_score: string;
@@ -37,6 +37,7 @@ export function ScoreEntryPanel({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const { locale } = useLocale();
   const t = useT();
   const [draft, setDraft] = useState<ScoreDraft>(() => toDraft(match));
   const [saving, setSaving] = useState<"live" | "final" | null>(null);
@@ -102,8 +103,8 @@ export function ScoreEntryPanel({
   }
 
   const showWinner = needsWinner(match, draft);
-  const homeLabel = bilingualAdminLabel(match.home_team);
-  const awayLabel = bilingualAdminLabel(match.away_team);
+  const homeLabel = adminLabel(match.home_team, locale);
+  const awayLabel = adminLabel(match.away_team, locale);
   const busy = saving !== null;
 
   return (

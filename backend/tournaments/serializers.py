@@ -1,6 +1,10 @@
 from rest_framework import serializers
 
+import re
+
 from tournaments.services.standing_rule_sets import apply_engine_defaults_to_ruleset
+from tournaments.services.team_eligibility import validate_team_ids_for_tournament
+from tournaments.services.team_geography import geography_for_team_code
 from tournaments.services.tournament_defaults import apply_competition_type_defaults
 
 from .models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team, Tournament
@@ -9,7 +13,17 @@ from .models import CupGroup, CupGroupTeam, Match, Stage, StandingRuleSet, Team,
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ("id", "name", "name_ar", "code", "flag_url")
+        fields = (
+            "id",
+            "name",
+            "name_ar",
+            "code",
+            "flag_url",
+            "team_type",
+            "country_code",
+            "continent",
+            "division",
+        )
 
 
 class StageSerializer(serializers.ModelSerializer):
@@ -49,6 +63,20 @@ class CupGroupCreateSerializer(serializers.ModelSerializer):
             CupGroupTeam.objects.create(
                 cup_group=cup_group, team_id=team_id, order=order
             )
+
+    def validate(self, attrs):
+        tournament = attrs.get("tournament") or (
+            self.instance.tournament if self.instance else None
+        )
+        team_ids = attrs.get("team_ids")
+        if team_ids is None and self.initial_data:
+            team_ids = self.initial_data.get("team_ids")
+        if tournament is not None and team_ids:
+            try:
+                validate_team_ids_for_tournament(team_ids, tournament)
+            except ValueError as exc:
+                raise serializers.ValidationError({"team_ids": str(exc)}) from exc
+        return super().validate(attrs)
 
     def create(self, validated_data):
         team_ids = validated_data.pop("team_ids", [])
@@ -309,6 +337,11 @@ class TournamentListSerializer(serializers.ModelSerializer):
             "name",
             "name_ar",
             "competition_type",
+            "allowed_team_type",
+            "team_scope",
+            "allowed_continent",
+            "allowed_country_code",
+            "allowed_division",
             "year",
             "start_date",
             "end_date",
@@ -336,6 +369,11 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
             "name",
             "name_ar",
             "competition_type",
+            "allowed_team_type",
+            "team_scope",
+            "allowed_continent",
+            "allowed_country_code",
+            "allowed_division",
             "year",
             "start_date",
             "end_date",
@@ -359,6 +397,11 @@ class TournamentCreateSerializer(TournamentRulesMixin, serializers.ModelSerializ
             "name",
             "name_ar",
             "competition_type",
+            "allowed_team_type",
+            "team_scope",
+            "allowed_continent",
+            "allowed_country_code",
+            "allowed_division",
             "year",
             "start_date",
             "end_date",
@@ -377,7 +420,27 @@ class TournamentCreateSerializer(TournamentRulesMixin, serializers.ModelSerializ
             attrs.pop("standing_rules", None)
         if attrs.get("standing_rule_set") and attrs.get("qualifiers_per_group"):
             attrs.pop("qualifiers_per_group", None)
-        return super().validate(attrs)
+        attrs = super().validate(attrs)
+        scope = attrs.get("team_scope", getattr(self.instance, "team_scope", None))
+        if scope == Tournament.TeamScope.CONTINENT and not attrs.get(
+            "allowed_continent", getattr(self.instance, "allowed_continent", "")
+        ):
+            raise serializers.ValidationError(
+                {"allowed_continent": "Select a continent for this tournament scope."}
+            )
+        if scope == Tournament.TeamScope.COUNTRY and not attrs.get(
+            "allowed_country_code", getattr(self.instance, "allowed_country_code", "")
+        ):
+            raise serializers.ValidationError(
+                {"allowed_country_code": "Enter a country code for this tournament scope."}
+            )
+        if scope == Tournament.TeamScope.DIVISION and not attrs.get(
+            "allowed_division", getattr(self.instance, "allowed_division", "")
+        ):
+            raise serializers.ValidationError(
+                {"allowed_division": "Enter a division/league for this tournament scope."}
+            )
+        return attrs
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -397,7 +460,40 @@ class StageCreateSerializer(serializers.ModelSerializer):
 class TeamCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ("name", "name_ar", "code", "flag_url")
+        fields = (
+            "name",
+            "name_ar",
+            "code",
+            "flag_url",
+            "team_type",
+            "country_code",
+            "continent",
+            "division",
+        )
+
+    def validate(self, attrs):
+        code = attrs.get("code", "")
+        flag_url = attrs.get("flag_url", "")
+        flag_iso = ""
+        flag_match = re.search(r"/([a-z]{2}(?:-[a-z]+)?)\.png", flag_url, re.I)
+        if flag_match:
+            flag_iso = flag_match.group(1)
+
+        geo = geography_for_team_code(code, flag_iso or None)
+        attrs.setdefault("team_type", geo["team_type"])
+        attrs.setdefault("country_code", geo["country_code"])
+        attrs.setdefault("continent", geo["continent"])
+
+        team_type = attrs.get("team_type", Team.TeamType.NATIONAL)
+        if team_type == Team.TeamType.NATIONAL and not attrs.get("continent"):
+            raise serializers.ValidationError(
+                {"continent": "Continent is required for national teams."}
+            )
+        if team_type == Team.TeamType.CLUB and not attrs.get("country_code"):
+            raise serializers.ValidationError(
+                {"country_code": "Country is required for club teams."}
+            )
+        return super().validate(attrs)
 
 
 class MatchCreateSerializer(serializers.ModelSerializer):
@@ -413,3 +509,15 @@ class MatchCreateSerializer(serializers.ModelSerializer):
             "kickoff_time",
             "status",
         )
+
+    def validate(self, attrs):
+        tournament = attrs.get("tournament")
+        if tournament:
+            for field in ("home_team", "away_team"):
+                team = attrs.get(field)
+                if team:
+                    try:
+                        validate_team_ids_for_tournament([team.id], tournament)
+                    except ValueError as exc:
+                        raise serializers.ValidationError({field: str(exc)}) from exc
+        return super().validate(attrs)

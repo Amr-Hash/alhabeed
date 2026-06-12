@@ -2,17 +2,38 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, Team, unwrapList } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
+import { adminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
+
+const CONTINENT_OPTIONS = [
+  "africa",
+  "asia",
+  "europe",
+  "north_america",
+  "south_america",
+  "oceania",
+] as const;
+
+const emptyForm = {
+  name: "",
+  name_ar: "",
+  code: "",
+  flag_url: "",
+  team_type: "national",
+  country_code: "",
+  continent: "",
+  division: "",
+};
 
 export default function AdminTeamsPage() {
   const { token } = useAuth();
+  const { locale } = useLocale();
   const t = useT();
   const [teams, setTeams] = useState<Team[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [form, setForm] = useState({ name: "", name_ar: "", code: "", flag_url: "" });
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -36,15 +57,19 @@ export default function AdminTeamsPage() {
     setError("");
     setSuccess("");
     try {
+      const payload = {
+        ...form,
+        division: form.team_type === "club" ? form.division : "",
+      };
       if (editingId) {
-        await api.adminUpdateTeam(token, editingId, form);
+        await api.adminUpdateTeam(token, editingId, payload);
         setSuccess(t("teamUpdated"));
         setEditingId(null);
       } else {
-        await api.adminCreateTeam(token, form);
+        await api.adminCreateTeam(token, payload);
         setSuccess(t("teamCreated"));
       }
-      setForm({ name: "", name_ar: "", code: "", flag_url: "" });
+      setForm(emptyForm);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("failedSaveTeam"));
@@ -58,6 +83,10 @@ export default function AdminTeamsPage() {
       name_ar: team.name_ar || "",
       code: team.code,
       flag_url: team.flag_url || "",
+      team_type: team.team_type || "national",
+      country_code: team.country_code || "",
+      continent: team.continent || "",
+      division: team.division || "",
     });
   }
 
@@ -85,6 +114,17 @@ export default function AdminTeamsPage() {
           {editingId ? t("adminEditTeam") : t("adminAddTeam")}
         </h2>
         <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("adminTeamType")}</label>
+            <select
+              className="input"
+              value={form.team_type}
+              onChange={(e) => setForm({ ...form, team_type: e.target.value })}
+            >
+              <option value="national">{t("adminTeamTypeNational")}</option>
+              <option value="club">{t("adminTeamTypeClub")}</option>
+            </select>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("fieldName")}</label>
             <input
@@ -114,6 +154,43 @@ export default function AdminTeamsPage() {
             />
           </div>
           <div>
+            <label className="mb-1 block text-sm font-medium">{t("adminTeamCountry")}</label>
+            <input
+              className="input"
+              value={form.country_code}
+              onChange={(e) => setForm({ ...form, country_code: e.target.value.toLowerCase() })}
+              placeholder="eg, mx, gb-eng"
+              required={form.team_type === "club"}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">{t("adminTeamContinent")}</label>
+            <select
+              className="input"
+              value={form.continent}
+              onChange={(e) => setForm({ ...form, continent: e.target.value })}
+              required={form.team_type === "national"}
+            >
+              <option value="">{t("adminSelect")}</option>
+              {CONTINENT_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+          {form.team_type === "club" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">{t("adminTeamDivision")}</label>
+              <input
+                className="input"
+                value={form.division}
+                onChange={(e) => setForm({ ...form, division: e.target.value })}
+                placeholder="Premier League"
+              />
+            </div>
+          )}
+          <div>
             <label className="mb-1 block text-sm font-medium">{t("adminFlag")}</label>
             <input
               className="input"
@@ -134,7 +211,7 @@ export default function AdminTeamsPage() {
               className="btn-secondary"
               onClick={() => {
                 setEditingId(null);
-                setForm({ name: "", name_ar: "", code: "", flag_url: "" });
+                setForm(emptyForm);
               }}
             >
               {t("cancel")}
@@ -149,7 +226,8 @@ export default function AdminTeamsPage() {
             <tr className="border-b text-gray-500">
               <th className="py-2 pr-4">{t("adminFlag")}</th>
               <th className="py-2 pr-4">{t("fieldName")}</th>
-              <th className="py-2 pr-4">{t("nameAr")}</th>
+              <th className="py-2 pr-4">{t("adminTeamType")}</th>
+              <th className="py-2 pr-4">{t("adminTeamContinent")}</th>
               <th className="py-2 pr-4">Code</th>
               <th className="py-2">{t("adminActions")}</th>
             </tr>
@@ -165,10 +243,11 @@ export default function AdminTeamsPage() {
                     "—"
                   )}
                 </td>
-                <td className="py-2 pr-4 font-medium">{team.name}</td>
-                <td className="py-2 pr-4" dir="rtl">
-                  {team.name_ar || "—"}
+                <td className="py-2 pr-4 font-medium">{adminLabel(team, locale)}</td>
+                <td className="py-2 pr-4">
+                  {team.team_type === "club" ? t("adminTeamTypeClub") : t("adminTeamTypeNational")}
                 </td>
+                <td className="py-2 pr-4">{team.continent?.replace(/_/g, " ") || "—"}</td>
                 <td className="py-2 pr-4">{team.code}</td>
                 <td className="py-2">
                   <div className="flex gap-2">

@@ -87,6 +87,10 @@ export interface Team {
   name_ar?: string;
   code: string;
   flag_url: string;
+  team_type?: "national" | "club";
+  country_code?: string;
+  continent?: string;
+  division?: string;
 }
 
 export interface Match {
@@ -402,6 +406,11 @@ export interface Tournament {
   name: string;
   name_ar?: string;
   competition_type?: "world_cup" | "champions_league" | "other";
+  allowed_team_type?: "national" | "club" | "any";
+  team_scope?: "worldwide" | "continent" | "country" | "division";
+  allowed_continent?: string;
+  allowed_country_code?: string;
+  allowed_division?: string;
   year: number;
   start_date: string;
   end_date: string;
@@ -823,19 +832,43 @@ export const api = {
   adminDeleteStage: (token: string, id: number) =>
     request(`/api/tournaments/admin/stages/${id}`, { method: "DELETE" }, token),
 
-  adminGetTeams: (token: string) =>
-    request<{ results?: Team[] } | Team[]>("/api/tournaments/teams", {}, token),
+  adminGetTeams: (token: string, params?: { tournament?: number }) => {
+    const qs = params?.tournament ? `?tournament=${params.tournament}` : "";
+    return request<{ results?: Team[] } | Team[]>(
+      `/api/tournaments/teams${qs}`,
+      {},
+      token
+    );
+  },
 
   adminCreateTeam: (
     token: string,
-    data: { name: string; name_ar?: string; code: string; flag_url?: string }
+    data: {
+      name: string;
+      name_ar?: string;
+      code: string;
+      flag_url?: string;
+      team_type?: string;
+      country_code?: string;
+      continent?: string;
+      division?: string;
+    }
   ) =>
     request<Team>("/api/tournaments/teams", { method: "POST", body: JSON.stringify(data) }, token),
 
   adminUpdateTeam: (
     token: string,
     id: number,
-    data: Partial<{ name: string; name_ar: string; code: string; flag_url: string }>
+    data: Partial<{
+      name: string;
+      name_ar: string;
+      code: string;
+      flag_url: string;
+      team_type: string;
+      country_code: string;
+      continent: string;
+      division: string;
+    }>
   ) =>
     request<Team>(`/api/tournaments/teams/${id}`, { method: "PATCH", body: JSON.stringify(data) }, token),
 

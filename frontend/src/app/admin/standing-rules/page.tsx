@@ -2,9 +2,9 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api, StandingRuleSet, unwrapList } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
+import { adminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/messages";
 
 const COMPETITION_TYPE_KEYS: Record<string, MessageKey> = {
@@ -41,6 +41,7 @@ function suggestedSlug(competitionType: string, version: string) {
 
 export default function AdminStandingRulesPage() {
   const { token } = useAuth();
+  const { locale } = useLocale();
   const t = useT();
   const [items, setItems] = useState<StandingRuleSet[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -275,7 +276,7 @@ export default function AdminStandingRulesPage() {
               <div key={item.id} className="card flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h3 className="font-semibold">
-                    {bilingualAdminLabel({ name: item.name, name_ar: item.name_ar })}
+                    {adminLabel({ name: item.name, name_ar: item.name_ar }, locale)}
                   </h3>
                   <p className="text-sm text-gray-500">
                     {t("adminRuleVersion")}: {item.version} · {t(ENGINE_KEYS[item.engine])} ·{" "}

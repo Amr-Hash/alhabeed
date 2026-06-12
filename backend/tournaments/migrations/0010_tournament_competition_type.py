@@ -22,9 +22,32 @@ def backfill_competition_type(apps, schema_editor):
 
 
 def sync_world_cup_defaults(apps, schema_editor):
-    from tournaments.services.standing_rule_sets import sync_world_cup_tournaments
+    """Link WC tournaments to 48-team rules without using the live Tournament model."""
+    Tournament = apps.get_model("tournaments", "Tournament")
+    StandingRuleSet = apps.get_model("tournaments", "StandingRuleSet")
 
-    sync_world_cup_tournaments()
+    ruleset = StandingRuleSet.objects.filter(slug="fifa-world-cup-48-teams").first()
+    if not ruleset:
+        return
+
+    live_config = {"league_id": 1, "season": 2026}
+    for tournament in Tournament.objects.filter(name="FIFA World Cup", year=2026):
+        tournament.competition_type = "world_cup"
+        tournament.standing_rule_set_id = ruleset.id
+        tournament.standing_rules = ruleset.engine
+        tournament.qualifiers_per_group = ruleset.qualifiers_per_group
+        tournament.live_score_provider = "api_football"
+        tournament.live_score_config = live_config
+        tournament.save(
+            update_fields=[
+                "competition_type",
+                "standing_rule_set_id",
+                "standing_rules",
+                "qualifiers_per_group",
+                "live_score_provider",
+                "live_score_config",
+            ]
+        )
 
 
 class Migration(migrations.Migration):

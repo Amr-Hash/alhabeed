@@ -151,6 +151,7 @@ def sync_builtin_rule_sets() -> int:
 
 def sync_world_cup_tournaments() -> int:
     """Ensure FIFA World Cup tournaments use 48-team rules and API-Football live scores."""
+    from tournaments.services.team_eligibility import default_team_eligibility_for_competition
     from tournaments.wc2026_data import WC2026_TOURNAMENT
 
     ruleset = StandingRuleSet.objects.filter(slug=WC_RULESET_SLUG).first()
@@ -161,12 +162,22 @@ def sync_world_cup_tournaments() -> int:
         return 0
 
     live_config = {"league_id": 1, "season": 2026}
+    eligibility = default_team_eligibility_for_competition(
+        StandingRuleSet.CompetitionType.WORLD_CUP
+    )
     updated = 0
     for tournament in Tournament.objects.filter(
         name=WC2026_TOURNAMENT["name"],
         year=WC2026_TOURNAMENT["year"],
     ):
         save_fields: list[str] = []
+        field_names = {field.name for field in tournament._meta.fields}
+        for key, value in eligibility.items():
+            if key not in field_names:
+                continue
+            if getattr(tournament, key) != value:
+                setattr(tournament, key, value)
+                save_fields.append(key)
         if tournament.competition_type != StandingRuleSet.CompetitionType.WORLD_CUP:
             tournament.competition_type = StandingRuleSet.CompetitionType.WORLD_CUP
             save_fields.append("competition_type")

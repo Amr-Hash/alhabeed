@@ -8,9 +8,9 @@ import {
   type LiveScoreSyncResult,
   type TournamentLiveScoreStatus,
 } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
+import { adminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/messages";
 
 const PROVIDER_KEYS: Record<string, MessageKey> = {
@@ -122,6 +122,7 @@ function TournamentStatusCard({
   lastSync?: LiveScoreSyncResult | null;
   showManageLink?: boolean;
 }) {
+  const { locale } = useLocale();
   const t = useT();
   const providerKey = PROVIDER_KEYS[status.live_score_provider] ?? "adminLiveScoreManual";
   const config = status.live_score_config;
@@ -137,10 +138,10 @@ function TournamentStatusCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold">
-            {bilingualAdminLabel({
+            {adminLabel({
               name: status.tournament_name,
               name_ar: status.tournament_name_ar,
-            })}
+            }, locale)}
           </h3>
           <p className="mt-1 text-sm text-gray-600">
             {t(providerKey)}

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, Tournament, unwrapList } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
+import { adminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
 
 const emptyForm = {
   name: "",
@@ -19,6 +19,7 @@ const emptyForm = {
 
 export default function AdminOverviewPage() {
   const { token } = useAuth();
+  const { locale } = useLocale();
   const t = useT();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -169,7 +170,7 @@ export default function AdminOverviewPage() {
           <div key={tournament.id} className="admin-card flex flex-col justify-between gap-4">
             <div>
               <div className="flex items-start justify-between gap-2">
-                <h2 className="text-xl font-semibold">{bilingualAdminLabel(tournament)}</h2>
+                <h2 className="text-xl font-semibold">{adminLabel(tournament, locale)}</h2>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                     tournament.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"

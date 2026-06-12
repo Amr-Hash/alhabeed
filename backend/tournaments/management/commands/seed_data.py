@@ -12,6 +12,7 @@ from tournaments.services.standing_rule_sets import (
     sync_builtin_rule_sets,
     sync_world_cup_tournaments,
 )
+from tournaments.services.team_geography import geography_for_team_code
 from tournaments.wc2026_data import (
     WC2026_GROUP_MATCHES,
     WC2026_GROUPS,
@@ -60,12 +61,16 @@ class Command(BaseCommand):
         teams = {}
         for name, code, flag_iso in team_rows:
             flag_url = f"https://flagcdn.com/w80/{flag_iso}.png"
+            geo = geography_for_team_code(code, flag_iso)
             team, _ = Team.objects.update_or_create(
                 code=code,
                 defaults={
                     "name": name,
                     "name_ar": team_name_ar(code, name),
                     "flag_url": flag_url,
+                    "team_type": geo["team_type"],
+                    "country_code": geo["country_code"],
+                    "continent": geo["continent"],
                 },
             )
             teams[code] = team

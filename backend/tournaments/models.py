@@ -2,6 +2,15 @@ from django.conf import settings
 from django.db import models
 
 
+class Continent(models.TextChoices):
+    AFRICA = "africa", "Africa"
+    ASIA = "asia", "Asia"
+    EUROPE = "europe", "Europe"
+    NORTH_AMERICA = "north_america", "North America"
+    SOUTH_AMERICA = "south_america", "South America"
+    OCEANIA = "oceania", "Oceania"
+
+
 class StandingRuleSet(models.Model):
     """Reusable group-standing and qualification rules (versioned per competition type)."""
 
@@ -74,6 +83,37 @@ class Tournament(models.Model):
         default=StandingRuleSet.CompetitionType.WORLD_CUP,
         help_text="Competition format (World Cup, Champions League, etc.).",
     )
+
+    class AllowedTeamType(models.TextChoices):
+        NATIONAL = "national", "National teams only"
+        CLUB = "club", "Clubs only"
+        ANY = "any", "National or club"
+
+    class TeamScope(models.TextChoices):
+        WORLDWIDE = "worldwide", "Worldwide"
+        CONTINENT = "continent", "One continent"
+        COUNTRY = "country", "One country"
+        DIVISION = "division", "One division (clubs)"
+
+    allowed_team_type = models.CharField(
+        max_length=16,
+        choices=AllowedTeamType.choices,
+        default=AllowedTeamType.NATIONAL,
+    )
+    team_scope = models.CharField(
+        max_length=16,
+        choices=TeamScope.choices,
+        default=TeamScope.WORLDWIDE,
+    )
+    allowed_continent = models.CharField(
+        max_length=20,
+        choices=Continent.choices,
+        blank=True,
+        default="",
+    )
+    allowed_country_code = models.CharField(max_length=16, blank=True, default="")
+    allowed_division = models.CharField(max_length=100, blank=True, default="")
+
     year = models.PositiveIntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
@@ -175,15 +215,45 @@ class Stage(models.Model):
 
 
 class Team(models.Model):
+    class TeamType(models.TextChoices):
+        NATIONAL = "national", "National team (country)"
+        CLUB = "club", "Club"
+
     name = models.CharField(max_length=100)
     name_ar = models.CharField(max_length=100, blank=True, default="")
     code = models.CharField(max_length=3, unique=True)
     flag_url = models.URLField(blank=True)
+    team_type = models.CharField(
+        max_length=16,
+        choices=TeamType.choices,
+        default=TeamType.NATIONAL,
+    )
+    country_code = models.CharField(
+        max_length=16,
+        blank=True,
+        default="",
+        help_text="ISO country code (e.g. eg, mx, gb-eng). Nation for national teams; home country for clubs.",
+    )
+    continent = models.CharField(
+        max_length=20,
+        choices=Continent.choices,
+        blank=True,
+        default="",
+    )
+    division = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="League or division (clubs only), e.g. Premier League.",
+    )
 
     class Meta:
         ordering = ["name"]
         indexes = [
             models.Index(fields=["code"]),
+            models.Index(fields=["team_type"]),
+            models.Index(fields=["continent"]),
+            models.Index(fields=["country_code"]),
         ]
 
     def __str__(self):

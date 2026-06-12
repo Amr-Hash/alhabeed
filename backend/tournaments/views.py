@@ -182,6 +182,19 @@ class StageViewSet(viewsets.ModelViewSet):
 class TeamViewSet(viewsets.ModelViewSet):
     queryset = Team.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        tournament_id = self.request.query_params.get("tournament")
+        if tournament_id:
+            from tournaments.models import Tournament
+            from tournaments.services.team_eligibility import eligible_teams_for_tournament
+
+            tournament = Tournament.objects.filter(pk=tournament_id).first()
+            if tournament:
+                return eligible_teams_for_tournament(tournament)
+        return qs
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):

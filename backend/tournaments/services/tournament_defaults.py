@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from tournaments.models import StandingRuleSet, Tournament
 from tournaments.services.standing_rule_sets import WC_RULESET_SLUG
+from tournaments.services.team_eligibility import apply_team_eligibility_defaults
 
 UCL_RULESET_SLUG = "uefa-champions-league-standard"
 SIMPLE_RULESET_SLUG = "simple-default"
@@ -65,4 +66,5 @@ def apply_competition_type_defaults(
         if "live_score_config" not in attrs and config:
             attrs["live_score_config"] = config
 
+    attrs = apply_team_eligibility_defaults(attrs, instance=instance)
     return attrs

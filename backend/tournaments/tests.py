@@ -482,6 +482,60 @@ class StandingRuleSetApiTests(TestCase):
         self.assertEqual(response.data["standing_rules"], "fifa_world_cup")
         self.assertEqual(response.data["qualifiers_per_group"], 2)
 
+    def test_club_rejected_from_world_cup_group(self):
+        from tournaments.services.standing_rule_sets import sync_builtin_rule_sets
+
+        sync_builtin_rule_sets()
+        club = Team.objects.create(
+            name="Test FC",
+            code="TFC",
+            team_type=Team.TeamType.CLUB,
+            country_code="eg",
+            continent="africa",
+            division="Egyptian League",
+        )
+        national = Team.objects.create(
+            name="Nat",
+            code="NAT",
+            team_type=Team.TeamType.NATIONAL,
+            country_code="eg",
+            continent="africa",
+        )
+        self.client.force_authenticate(user=self.admin)
+        tournament_resp = self.client.post(
+            "/api/tournaments/admin/tournaments",
+            {
+                "name": "WC Eligibility",
+                "competition_type": "world_cup",
+                "year": 2030,
+                "start_date": "2030-06-01",
+                "end_date": "2030-07-15",
+            },
+            format="json",
+        )
+        tournament_id = tournament_resp.data["id"]
+        group_resp = self.client.post(
+            "/api/tournaments/admin/cup-groups",
+            {
+                "tournament": tournament_id,
+                "name": "A",
+                "team_ids": [club.id, national.id],
+            },
+            format="json",
+        )
+        self.assertEqual(group_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        ok_resp = self.client.post(
+            "/api/tournaments/admin/cup-groups",
+            {
+                "tournament": tournament_id,
+                "name": "A",
+                "team_ids": [national.id],
+            },
+            format="json",
+        )
+        self.assertEqual(ok_resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(CupGroup.objects.filter(tournament_id=tournament_id).count(), 1)
+
     def test_tournament_create_with_competition_type_defaults(self):
         from tournaments.services.standing_rule_sets import sync_builtin_rule_sets
 

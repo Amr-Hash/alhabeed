@@ -10,10 +10,10 @@ import {
   Tournament,
   unwrapList,
 } from "@/lib/api";
-import { bilingualAdminLabel, teamOptionLabel } from "@/lib/adminDisplay";
+import { adminLabel, teamOptionLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
-import type { MessageKey } from "@/lib/messages";
+import { useLocale, useT } from "@/lib/i18n";
+import type { Locale, MessageKey } from "@/lib/messages";
 import { LiveScoreStatusPanel } from "./LiveScoreStatusPanel";
 import { ScoreEntryPanel } from "./ScoreEntryPanel";
 
@@ -65,8 +65,8 @@ function pickCurrentMatchday(matches: Match[], stageId: number): number | null {
   return days[days.length - 1] ?? null;
 }
 
-function stageLabel(stage: Stage): string {
-  return bilingualAdminLabel(stage);
+function stageLabel(stage: Stage, locale: Locale): string {
+  return adminLabel(stage, locale);
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -97,12 +97,19 @@ function AdminMatchCard({
   onSaved: () => void;
   onDelete: () => void;
 }) {
+  const { locale } = useLocale();
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const hasScore = match.home_score !== null && match.away_score !== null;
-  const homeLabel = bilingualAdminLabel(match.home_team);
-  const awayLabel = bilingualAdminLabel(match.away_team);
+  const homeLabel = adminLabel(match.home_team, locale);
+  const awayLabel = adminLabel(match.away_team, locale);
+  const cupGroupName = match.cup_group_name
+    ? adminLabel(
+        { name: match.cup_group_name, name_ar: match.cup_group_name_ar ?? undefined },
+        locale
+      )
+    : "";
 
   async function handleRecalculate() {
     setRecalculating(true);
@@ -131,15 +138,8 @@ function AdminMatchCard({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
             <StatusBadge status={match.status} />
-            {match.cup_group_name && (
-              <span>
-                {t("adminGroupLabel", {
-                  name:
-                    match.cup_group_name_ar && match.cup_group_name_ar !== match.cup_group_name
-                      ? `${match.cup_group_name} · ${match.cup_group_name_ar}`
-                      : match.cup_group_name,
-                })}
-              </span>
+            {cupGroupName && (
+              <span>{t("adminGroupLabel", { name: cupGroupName })}</span>
             )}
             {match.matchday && <span>{t("matchday", { day: match.matchday })}</span>}
             <span>{new Date(match.kickoff_time).toLocaleString()}</span>
@@ -189,6 +189,7 @@ function AdminMatchCard({
 
 export function TournamentHub({ tournamentId }: { tournamentId: number }) {
   const { token } = useAuth();
+  const { locale } = useLocale();
   const t = useT();
   const [tab, setTab] = useState<Tab>("matches");
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -229,7 +230,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
       api.adminGetStages(token, tournamentId),
       api.adminGetMatches(token, { tournament: tournamentId }),
       api.adminGetCupGroups(token, tournamentId),
-      api.adminGetTeams(token),
+      api.adminGetTeams(token, { tournament: tournamentId }),
     ]);
     setTournament(tData);
     const stageList = unwrapList(stageData);
@@ -393,7 +394,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="admin-page-title">{bilingualAdminLabel(tournament)}</h1>
+            <h1 className="admin-page-title">{adminLabel(tournament, locale)}</h1>
             <p className="text-gray-600">
               {tournament.competition_type &&
                 COMPETITION_TYPE_KEYS[tournament.competition_type] && (
@@ -411,7 +412,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
             <div className="mt-2 flex flex-wrap gap-2 text-sm">
               {tournament.standing_rule_set ? (
                 <span className="rounded-full bg-pitch-50 px-2.5 py-1 font-medium text-pitch-800">
-                  {t("adminStandingRuleSet")}: {bilingualAdminLabel(tournament.standing_rule_set)} (
+                  {t("adminStandingRuleSet")}: {adminLabel(tournament.standing_rule_set, locale)} (
                   {tournament.standing_rule_set.version})
                 </span>
               ) : (
@@ -497,7 +498,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                             stageId === stage.id ? "admin-round-pill-active" : "admin-round-pill"
                           }
                         >
-                          {stageLabel(stage)}
+                          {stageLabel(stage, locale)}
                           {isCurrent && stageId !== stage.id && (
                             <span className="ml-1 text-xs opacity-75">●</span>
                           )}
@@ -514,7 +515,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
 
               {selectedStage && (
                 <div className="mb-4 rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3 text-sm">
-                  <strong>{stageLabel(selectedStage)}</strong> ({selectedStage.stage_type}) —{" "}
+                  <strong>{stageLabel(selectedStage, locale)}</strong> ({selectedStage.stage_type}) —{" "}
                   {t("adminRoundStats", {
                     finished: stageStats.finished,
                     total: stageStats.total,
@@ -570,7 +571,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
               {showAddMatch && stageId && (
                 <form onSubmit={handleCreateMatch} className="admin-card mb-6 space-y-4">
                   <h3 className="font-semibold">
-                    {t("adminAddMatchTo", { name: selectedStage ? stageLabel(selectedStage) : "" })}
+                    {t("adminAddMatchTo", { name: selectedStage ? stageLabel(selectedStage, locale) : "" })}
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
@@ -584,7 +585,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                         <option value="">{t("adminSelect")}</option>
                         {teams.map((team) => (
                           <option key={team.id} value={team.id}>
-                            {teamOptionLabel(team)}
+                            {teamOptionLabel(team, locale)}
                           </option>
                         ))}
                       </select>
@@ -600,7 +601,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                         <option value="">{t("adminSelect")}</option>
                         {teams.map((team) => (
                           <option key={team.id} value={team.id}>
-                            {teamOptionLabel(team)}
+                            {teamOptionLabel(team, locale)}
                           </option>
                         ))}
                       </select>
@@ -616,7 +617,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                           <option value="">{t("adminNone")}</option>
                           {cupGroups.map((g) => (
                             <option key={g.id} value={g.id}>
-                              {t("adminGroupLabel", { name: bilingualAdminLabel(g) })}
+                              {t("adminGroupLabel", { name: adminLabel(g, locale) })}
                             </option>
                           ))}
                         </select>
@@ -720,7 +721,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                         )
                       }
                     />
-                    {teamOptionLabel(team)}
+                    {teamOptionLabel(team, locale)}
                   </label>
                 ))}
               </div>
@@ -742,7 +743,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
               <div key={group.id} className="admin-card">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-lg font-semibold">
-                    {t("adminGroupLabel", { name: bilingualAdminLabel(group) })}
+                    {t("adminGroupLabel", { name: adminLabel(group, locale) })}
                   </h3>
                   <div className="flex gap-2 text-sm">
                     <button
@@ -772,7 +773,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                 </div>
                 <ul className="space-y-1 text-sm text-gray-600">
                   {group.group_teams.map((gt) => (
-                    <li key={gt.team.id}>{teamOptionLabel(gt.team)}</li>
+                    <li key={gt.team.id}>{teamOptionLabel(gt.team, locale)}</li>
                   ))}
                   {group.group_teams.length === 0 && (
                     <li className="text-gray-400">{t("adminNoTeamsAssigned")}</li>
@@ -871,7 +872,7 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
                     return (
                       <li key={stage.id} className="flex items-center justify-between py-3">
                         <div>
-                          <span className="font-medium">{stageLabel(stage)}</span>
+                          <span className="font-medium">{stageLabel(stage, locale)}</span>
                           <span className="ml-2 text-sm capitalize text-gray-500">
                             {stage.stage_type === "group"
                               ? t("adminGroupStage")

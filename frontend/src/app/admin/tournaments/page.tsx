@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, StandingRuleSet, Tournament, unwrapList } from "@/lib/api";
-import { bilingualAdminLabel } from "@/lib/adminDisplay";
+import { adminLabel } from "@/lib/adminDisplay";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/messages";
 
 const COMPETITION_TYPE_KEYS: Record<string, MessageKey> = {
@@ -14,10 +14,24 @@ const COMPETITION_TYPE_KEYS: Record<string, MessageKey> = {
   other: "adminRuleTypeOther",
 };
 
+const CONTINENT_OPTIONS = [
+  "africa",
+  "asia",
+  "europe",
+  "north_america",
+  "south_america",
+  "oceania",
+] as const;
+
 const emptyForm = {
   name: "",
   name_ar: "",
   competition_type: "world_cup",
+  allowed_team_type: "national",
+  team_scope: "worldwide",
+  allowed_continent: "",
+  allowed_country_code: "",
+  allowed_division: "",
   year: new Date().getFullYear(),
   start_date: "",
   end_date: "",
@@ -31,6 +45,34 @@ const emptyForm = {
   live_score_season: String(new Date().getFullYear()),
 };
 
+function teamEligibilityForCompetitionType(type: string) {
+  if (type === "world_cup") {
+    return {
+      allowed_team_type: "national",
+      team_scope: "worldwide",
+      allowed_continent: "",
+      allowed_country_code: "",
+      allowed_division: "",
+    };
+  }
+  if (type === "champions_league") {
+    return {
+      allowed_team_type: "club",
+      team_scope: "continent",
+      allowed_continent: "europe",
+      allowed_country_code: "",
+      allowed_division: "",
+    };
+  }
+  return {
+    allowed_team_type: "any",
+    team_scope: "worldwide",
+    allowed_continent: "",
+    allowed_country_code: "",
+    allowed_division: "",
+  };
+}
+
 function applyCompetitionTypeDefaults(
   type: string,
   year: number,
@@ -42,6 +84,7 @@ function applyCompetitionTypeDefaults(
   return {
     ...current,
     competition_type: type,
+    ...teamEligibilityForCompetitionType(type),
     standing_rule_set_id: ruleset ? String(ruleset.id) : "",
     standing_rules: ruleset?.engine ?? current.standing_rules,
     qualifiers_per_group: ruleset?.qualifiers_per_group ?? current.qualifiers_per_group,
@@ -53,6 +96,7 @@ function applyCompetitionTypeDefaults(
 
 export default function AdminTournamentsPage() {
   const { token } = useAuth();
+  const { locale } = useLocale();
   const t = useT();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [ruleSets, setRuleSets] = useState<StandingRuleSet[]>([]);
@@ -96,6 +140,11 @@ export default function AdminTournamentsPage() {
       name: form.name,
       name_ar: form.name_ar,
       competition_type: form.competition_type,
+      allowed_team_type: form.allowed_team_type,
+      team_scope: form.team_scope,
+      allowed_continent: form.allowed_continent || undefined,
+      allowed_country_code: form.allowed_country_code || undefined,
+      allowed_division: form.allowed_division || undefined,
       year: form.year,
       start_date: form.start_date,
       end_date: form.end_date,
@@ -171,6 +220,11 @@ export default function AdminTournamentsPage() {
       name: tournament.name,
       name_ar: tournament.name_ar || "",
       competition_type: tournament.competition_type || "world_cup",
+      allowed_team_type: tournament.allowed_team_type || "national",
+      team_scope: tournament.team_scope || "worldwide",
+      allowed_continent: tournament.allowed_continent || "",
+      allowed_country_code: tournament.allowed_country_code || "",
+      allowed_division: tournament.allowed_division || "",
       year: tournament.year,
       start_date: tournament.start_date,
       end_date: tournament.end_date,
@@ -230,6 +284,80 @@ export default function AdminTournamentsPage() {
               ))}
             </select>
             <p className="mt-1 text-xs text-gray-500">{t("adminTournamentTypeHint")}</p>
+          </div>
+          <div className="sm:col-span-2 rounded-lg border border-pitch-100 bg-pitch-50/40 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-pitch-900">{t("adminTeamEligibility")}</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium">{t("adminAllowedTeamType")}</label>
+                <select
+                  className="input"
+                  value={form.allowed_team_type}
+                  onChange={(e) => setForm({ ...form, allowed_team_type: e.target.value })}
+                >
+                  <option value="national">{t("adminTeamTypeNational")}</option>
+                  <option value="club">{t("adminTeamTypeClub")}</option>
+                  <option value="any">{t("adminTeamTypeAny")}</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">{t("adminTeamScope")}</label>
+                <select
+                  className="input"
+                  value={form.team_scope}
+                  onChange={(e) => setForm({ ...form, team_scope: e.target.value })}
+                >
+                  <option value="worldwide">{t("adminTeamScopeWorldwide")}</option>
+                  <option value="continent">{t("adminTeamScopeContinent")}</option>
+                  <option value="country">{t("adminTeamScopeCountry")}</option>
+                  <option value="division">{t("adminTeamScopeDivision")}</option>
+                </select>
+              </div>
+              {form.team_scope === "continent" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("adminAllowedContinent")}</label>
+                  <select
+                    className="input"
+                    value={form.allowed_continent}
+                    onChange={(e) => setForm({ ...form, allowed_continent: e.target.value })}
+                    required
+                  >
+                    <option value="">{t("adminSelect")}</option>
+                    {CONTINENT_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {form.team_scope === "country" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("adminAllowedCountryCode")}</label>
+                  <input
+                    className="input"
+                    value={form.allowed_country_code}
+                    onChange={(e) =>
+                      setForm({ ...form, allowed_country_code: e.target.value.toLowerCase() })
+                    }
+                    placeholder="eg"
+                    required
+                  />
+                </div>
+              )}
+              {form.team_scope === "division" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("adminAllowedDivision")}</label>
+                  <input
+                    className="input"
+                    value={form.allowed_division}
+                    onChange={(e) => setForm({ ...form, allowed_division: e.target.value })}
+                    placeholder="Premier League"
+                    required
+                  />
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">{t("fieldName")}</label>
@@ -308,7 +436,7 @@ export default function AdminTournamentsPage() {
                 .filter((rules) => rules.competition_type === form.competition_type)
                 .map((rules) => (
                   <option key={rules.id} value={rules.id}>
-                    {rules.name} ({rules.version})
+                    {adminLabel(rules, locale)} ({rules.version})
                   </option>
                 ))}
             </select>
@@ -411,7 +539,7 @@ export default function AdminTournamentsPage() {
           <div key={tournament.id} className="card flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold">
-                {bilingualAdminLabel(tournament)}{" "}
+                {adminLabel(tournament, locale)}{" "}
                 <span className="text-gray-400">({tournament.year})</span>
               </h3>
               <p className="text-sm text-gray-500">
@@ -424,7 +552,7 @@ export default function AdminTournamentsPage() {
                 {tournament.start_date} → {tournament.end_date} · {tournament.match_count ?? 0}{" "}
                 {t("matches").toLowerCase()}
                 {tournament.standing_rule_set && (
-                  <> · {tournament.standing_rule_set.name}</>
+                  <> · {adminLabel(tournament.standing_rule_set, locale)}</>
                 )}
                 {tournament.live_score_provider && tournament.live_score_provider !== "manual" && (
                   <> · {tournament.live_score_provider}</>
