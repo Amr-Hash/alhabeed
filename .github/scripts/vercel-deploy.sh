@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy to Vercel production, point the stable alias at the new deployment,
-# and verify the alias serves this commit.
+# Deploy to Vercel production and point the stable alias at the new deployment.
 # Requires: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, PRODUCTION_ALIAS
 # Optional: GITHUB_SHA, GITHUB_OUTPUT
 
@@ -17,8 +16,10 @@ if [ -z "${PRODUCTION_ALIAS:-}" ]; then
 fi
 
 GIT_SHA="${GITHUB_SHA:-${GIT_SHA:-}}"
-DEPLOY_LOG="$(mktemp)"
-trap 'rm -f "$DEPLOY_LOG"' EXIT
+IS_API=false
+if [[ "${PRODUCTION_ALIAS}" == *"-api."* ]]; then
+  IS_API=true
+fi
 
 DEPLOY_ARGS=(deploy --prod --yes --token "$VERCEL_TOKEN")
 if [ -n "$GIT_SHA" ]; then
@@ -27,39 +28,44 @@ if [ -n "$GIT_SHA" ]; then
 fi
 
 echo "Deploying to Vercel (production)${GIT_SHA:+ for commit ${GIT_SHA}}..."
+DEPLOY_LOG="$(mktemp)"
+trap 'rm -f "$DEPLOY_LOG"' EXIT
+
 if ! npx vercel@latest "${DEPLOY_ARGS[@]}" 2>&1 | tee "$DEPLOY_LOG"; then
   echo "Vercel deploy failed."
   exit 1
 fi
 
-extract_deploy_url() {
-  local log_file=$1
-  # Prefer the unique production deployment URL (not team/default aliases).
-  local from_production
-  from_production="$(
-    grep -Eo 'Production[[:space:]]+https://[a-zA-Z0-9._-]+\.vercel\.app' "$log_file" \
-      | tail -1 \
-      | awk '{print $NF}'
-  )"
-  if [ -n "$from_production" ]; then
-    echo "$from_production"
-    return
-  fi
+DEPLOY_URL="$(
+  python3 - <<'PY' "$DEPLOY_LOG"
+import json
+import re
+import sys
 
-  grep -Eo 'https://[a-z0-9]+-[a-z0-9]{6,}-[a-zA-Z0-9._-]+\.vercel\.app' "$log_file" \
-    | grep -v "${PRODUCTION_ALIAS}" \
-    | tail -1
-}
+log_path = sys.argv[1]
+text = open(log_path, encoding="utf-8", errors="replace").read()
 
-DEPLOY_URL="$(extract_deploy_url "$DEPLOY_LOG")"
+for line in reversed(text.splitlines()):
+    line = line.strip()
+    if not line.startswith("{"):
+        continue
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    url = data.get("url") or (data.get("deployment") or {}).get("url")
+    if url:
+        print(url if url.startswith("http") else f"https://{url}")
+        raise SystemExit(0)
 
-if [ -z "$DEPLOY_URL" ]; then
-  DEPLOY_URL="$(
-    grep -Eo '"url"[[:space:]]*:[[:space:]]*"https://[^"]+\.vercel\.app"' "$DEPLOY_LOG" \
-      | tail -1 \
-      | sed -E 's/.*"url"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/'
-  )"
-fi
+match = re.findall(
+    r"Production\s+https://[a-z0-9]+-[a-z0-9]{6,}-[a-zA-Z0-9._-]+\.vercel\.app",
+    text,
+)
+if match:
+    print(match[-1].split()[-1])
+PY
+)"
 
 if [ -z "$DEPLOY_URL" ]; then
   echo "Could not determine deployment URL from Vercel output:"
@@ -75,60 +81,41 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
   } >> "$GITHUB_OUTPUT"
 fi
 
-echo "Pointing $PRODUCTION_ALIAS → $DEPLOY_URL"
+echo "Pointing ${PRODUCTION_ALIAS} → ${DEPLOY_URL}"
 npx vercel@latest alias set "$DEPLOY_URL" "$PRODUCTION_ALIAS" --token "$VERCEL_TOKEN"
 
 read_git_sha() {
   local base_url=$1
-  if [[ "$base_url" == *"alhabeed-api"* ]]; then
-    curl -fsS "${base_url}/api/health" | python3 -c "import sys,json; print(json.load(sys.stdin).get('git_sha') or '')"
+  if $IS_API; then
+    curl -fsS "${base_url}/api/health" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('git_sha') or '')"
   else
-    curl -fsS "${base_url}/api/build-info" | python3 -c "import sys,json; print(json.load(sys.stdin).get('git_sha') or '')"
+    curl -fsS "${base_url}/api/build-info" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('git_sha') or '')"
   fi
 }
 
-wait_for_sha() {
-  local base_url=$1
-  local expected=$2
-  local label=$3
-  local i
-
-  for i in $(seq 1 24); do
-    actual="$(read_git_sha "$base_url" 2>/dev/null || true)"
-    if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
-      echo "${label} is serving commit ${expected}"
-      return 0
+ALIAS_URL="https://${PRODUCTION_ALIAS}"
+if [ -n "$GIT_SHA" ]; then
+  for i in $(seq 1 6); do
+    actual="$(read_git_sha "$ALIAS_URL" 2>/dev/null || true)"
+    if [ "$actual" = "$GIT_SHA" ]; then
+      echo "Production alias serves commit ${GIT_SHA}"
+      break
     fi
-    echo "Waiting for ${label} (attempt ${i}/24): got '${actual:-<empty>}' expected '${expected}'"
-    sleep 15
+    if [ "$i" = "6" ]; then
+      echo "Production alias git_sha is '${actual:-<empty>}' expected '${GIT_SHA}'"
+      exit 1
+    fi
+    echo "Waiting for alias (attempt ${i}/6)..."
+    sleep 5
   done
-
-  echo "${label} did not serve commit ${expected} in time."
-  return 1
-}
-
-if [[ "$PRODUCTION_ALIAS" == alhabeed-api.vercel.app ]]; then
-  STATUS="$(curl -s -o /dev/null -w "%{http_code}" "https://${PRODUCTION_ALIAS}/api/health" || true)"
-  echo "Health check: https://${PRODUCTION_ALIAS}/api/health → HTTP ${STATUS}"
-  if [ "$STATUS" != "200" ]; then
-    echo "Production API health check failed."
-    exit 1
-  fi
-  if [ -n "$GIT_SHA" ]; then
-    wait_for_sha "https://${DEPLOY_URL}" "$GIT_SHA" "Deployment URL"
-    wait_for_sha "https://${PRODUCTION_ALIAS}" "$GIT_SHA" "Production alias"
-  fi
 else
-  STATUS="$(curl -s -o /dev/null -w "%{http_code}" "https://${PRODUCTION_ALIAS}/" || true)"
-  echo "Frontend check: https://${PRODUCTION_ALIAS}/ → HTTP ${STATUS}"
-  if [ "$STATUS" != "200" ]; then
-    echo "Production frontend check failed."
-    exit 1
-  fi
-  if [ -n "$GIT_SHA" ]; then
-    wait_for_sha "https://${DEPLOY_URL}" "$GIT_SHA" "Deployment URL"
-    wait_for_sha "https://${PRODUCTION_ALIAS}" "$GIT_SHA" "Production alias"
+  if $IS_API; then
+    curl -fsS "${ALIAS_URL}/api/health" >/dev/null
+  else
+    curl -fsS "${ALIAS_URL}/" >/dev/null
   fi
 fi
 
-echo "Live alias updated: https://${PRODUCTION_ALIAS}"
+echo "Live: ${ALIAS_URL}"
