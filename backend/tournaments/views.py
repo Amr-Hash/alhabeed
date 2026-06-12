@@ -1,3 +1,4 @@
+import logging
 import os
 
 from django.db import models
@@ -32,6 +33,19 @@ from .serializers import (
 
 
 from worldcup.permissions import IsAdminUser
+
+logger = logging.getLogger(__name__)
+
+
+def _live_score_error_response(exc: Exception, *, code: str) -> Response:
+    logger.exception("Live score admin action failed: %s", exc)
+    return Response(
+        {
+            "detail": "Live score operation failed. Check server logs for details.",
+            "code": code,
+        },
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 class TournamentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -141,7 +155,10 @@ class AdminTournamentViewSet(viewsets.ModelViewSet):
     def live_score_overview(self, request):
         from tournaments.services.live_score_status import get_live_score_overview
 
-        return Response(get_live_score_overview())
+        try:
+            return Response(get_live_score_overview())
+        except Exception as exc:
+            return _live_score_error_response(exc, code="live_score_overview_failed")
 
     @action(detail=True, methods=["get"], url_path="live-score-status")
     def live_score_status(self, request, pk=None):
@@ -151,22 +168,28 @@ class AdminTournamentViewSet(viewsets.ModelViewSet):
         )
 
         tournament = self.get_object()
-        return Response(
-            {
-                "environment": get_global_live_score_environment(),
-                "tournament": get_tournament_live_score_status(
-                    tournament, detailed=True
-                ),
-            }
-        )
+        try:
+            return Response(
+                {
+                    "environment": get_global_live_score_environment(),
+                    "tournament": get_tournament_live_score_status(
+                        tournament, detailed=True
+                    ),
+                }
+            )
+        except Exception as exc:
+            return _live_score_error_response(exc, code="live_score_status_failed")
 
     @action(detail=True, methods=["post"], url_path="sync-live-scores")
     def sync_live_scores(self, request, pk=None):
         from tournaments.services.live_scores import sync_tournament_live_scores
 
         tournament = self.get_object()
-        result = sync_tournament_live_scores(tournament)
-        return Response({"tournament_id": tournament.id, **result})
+        try:
+            result = sync_tournament_live_scores(tournament)
+            return Response({"tournament_id": tournament.id, **result})
+        except Exception as exc:
+            return _live_score_error_response(exc, code="live_score_sync_failed")
 
 
 class StageViewSet(viewsets.ModelViewSet):

@@ -61,8 +61,9 @@ Production Postgres database name: **`alhabeed`** (renamed from Neon default `ne
 
 1. Open [Vercel Storage → Neon](https://vercel.com/amr-hashem/alhabeed-api/stores) for **alhabeed-api**
 2. Ensure `DATABASE_URL` points to the `alhabeed` database (updated automatically after rename)
-3. To rename locally or on another host: `python manage.py rename_database --from neondb --to alhabeed`
-4. Redeploy the backend after any `DATABASE_URL` change: `cd backend && npx vercel deploy --prod`
+3. **Build-time:** `DATABASE_URL` must be available during the Vercel **build** (not only runtime). `backend/build.py` runs migrations on deploy; if the variable is missing at build, the deployment fails. Check `/api/health` for `migration_head_ok: true` after deploy.
+4. To rename locally or on another host: `python manage.py rename_database --from neondb --to alhabeed`
+5. Redeploy the backend after any `DATABASE_URL` change: `cd backend && npx vercel deploy --prod`
 
 ## Quick Start (Docker)
 

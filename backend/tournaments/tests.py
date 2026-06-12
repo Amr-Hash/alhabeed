@@ -185,6 +185,23 @@ class AdminApiTests(TestCase):
         self.assertEqual(response.data["home_score"], 2)
         self.assertEqual(response.data["status"], "finished")
 
+    def test_admin_group_stage_draw_does_not_require_winner(self):
+        self.client.force_authenticate(user=self.staff)
+        response = self.client.patch(
+            f"/api/tournaments/admin/matches/{self.match.id}",
+            {
+                "home_score": 1,
+                "away_score": 1,
+                "status": "finished",
+                "winner_team": None,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["home_score"], 1)
+        self.assertEqual(response.data["away_score"], 1)
+        self.assertIsNone(response.data["winner_team"])
+
     def test_admin_finished_match_requires_scores(self):
         self.client.force_authenticate(user=self.staff)
         response = self.client.patch(
@@ -667,6 +684,79 @@ class LiveScoreStatusTests(TestCase):
         self.assertIn("missing_api_key", response.data["tournament"]["issues"])
         self.assertEqual(response.data["tournament"]["health"], "error")
 
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_overview_tolerates_non_dict_live_score_config(self):
+        self.tournament.live_score_config = "not-a-config"
+        self.tournament.save(update_fields=["live_score_config"])
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            "/api/tournaments/admin/tournaments/live-score-overview"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tournament = response.data["tournaments"][0]
+        self.assertEqual(tournament["live_score_config"], {})
+        self.assertIn("missing_config", tournament["issues"])
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_kickoff_isoformat_handles_none(self):
+        from tournaments.services.live_score_status import kickoff_isoformat
+
+        self.assertIsNone(kickoff_isoformat(None))
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_detailed_status_naive_kickoff_on_unmapped_match(self):
+        from datetime import datetime
+
+        Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=datetime(2026, 6, 12, 18, 0, 0),
+            status=Match.Status.SCHEDULED,
+            external_fixture_id="",
+        )
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            f"/api/tournaments/admin/tournaments/{self.tournament.id}/live-score-status"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        unmapped = response.data["tournament"]["unmapped_matches"]
+        self.assertTrue(any(row["kickoff_time"] for row in unmapped))
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    def test_overview_isolates_per_tournament_failure(self):
+        Tournament.objects.create(
+            name="Bad Cup",
+            year=2025,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+            live_score_provider=Tournament.LiveScoreProvider.MANUAL,
+        )
+        from tournaments.services import live_score_status as lss
+
+        original = lss.get_tournament_live_score_status
+
+        def status_with_failure(tournament, *, detailed=False):
+            if tournament.name == "Bad Cup":
+                raise RuntimeError("simulated status failure")
+            return original(tournament, detailed=detailed)
+
+        self.client.force_authenticate(user=self.admin)
+        with patch.object(
+            lss, "get_tournament_live_score_status", side_effect=status_with_failure
+        ):
+            response = self.client.get(
+                "/api/tournaments/admin/tournaments/live-score-overview"
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["summary"]["tournament_count"], 2)
+        bad_row = next(
+            row for row in response.data["tournaments"] if row["tournament_name"] == "Bad Cup"
+        )
+        self.assertEqual(bad_row["health"], "error")
+        self.assertIn("status_build_failed", bad_row["issues"])
+
 
 class LiveScoreSyncTests(TestCase):
     def setUp(self):
@@ -781,6 +871,25 @@ class LiveScoreSyncTests(TestCase):
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, Match.Status.FINISHED)
         self.assertGreater(self.prediction.points_awarded, 0)
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    @patch("tournaments.services.live_scores.fetch_season_fixtures", return_value=[])
+    def test_admin_sync_tolerates_naive_kickoff(self, _mock_fetch):
+        from datetime import datetime
+
+        admin = User.objects.create_user(
+            username="adminsync",
+            email="adminsync@test.com",
+            password="pass12345",
+            is_staff=True,
+        )
+        self.match.kickoff_time = datetime(2026, 6, 12, 18, 0, 0)
+        self.match.save(update_fields=["kickoff_time"])
+        self.client.force_authenticate(user=admin)
+        response = self.client.post(
+            f"/api/tournaments/admin/tournaments/{self.tournament.id}/sync-live-scores"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
 class TeamEligibilityServiceTests(TestCase):

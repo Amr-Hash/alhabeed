@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -14,6 +15,21 @@ from tournaments.services.live_scores import (
     is_sync_window_open,
     parse_sync_bound,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def safe_live_score_config(config: Any) -> dict[str, Any]:
+    """Return provider config as a dict; tolerate null or malformed JSON values."""
+    if isinstance(config, dict):
+        return config
+    return {}
+
+
+def kickoff_isoformat(kickoff_time) -> str | None:
+    if not kickoff_time:
+        return None
+    return ensure_aware_datetime(kickoff_time).isoformat()
 
 
 def get_global_live_score_environment() -> dict[str, Any]:
@@ -37,7 +53,7 @@ def _config_issues(tournament: Tournament) -> list[str]:
     if provider == Tournament.LiveScoreProvider.MANUAL:
         return []
 
-    config = tournament.live_score_config or {}
+    config = safe_live_score_config(tournament.live_score_config)
     issues: list[str] = []
 
     if provider == Tournament.LiveScoreProvider.API_FOOTBALL:
@@ -71,6 +87,36 @@ def _health_status(tournament: Tournament, issues: list[str], unmapped_non_finis
     if unmapped_non_finished > 0 or "outside_sync_window" in issues:
         return "warning"
     return "ready"
+
+
+def _failed_tournament_status(tournament: Tournament, exc: Exception) -> dict[str, Any]:
+    logger.exception(
+        "Failed to build live score status for tournament %s (%s)",
+        tournament.id,
+        tournament.name,
+    )
+    return {
+        "tournament_id": tournament.id,
+        "tournament_name": tournament.name,
+        "tournament_name_ar": tournament.name_ar,
+        "year": tournament.year,
+        "is_active": tournament.is_active,
+        "is_archived": tournament.is_archived,
+        "live_score_provider": tournament.live_score_provider,
+        "live_score_config": safe_live_score_config(tournament.live_score_config),
+        "health": "error",
+        "issues": ["status_build_failed"],
+        "status_error": str(exc),
+        "matches": {
+            "total": 0,
+            "scheduled": 0,
+            "live": 0,
+            "finished": 0,
+            "mapped_fixtures": 0,
+            "unmapped_active": 0,
+            "in_sync_window": 0,
+        },
+    }
 
 
 def get_tournament_live_score_status(
@@ -119,7 +165,7 @@ def get_tournament_live_score_status(
         "is_active": tournament.is_active,
         "is_archived": tournament.is_archived,
         "live_score_provider": tournament.live_score_provider,
-        "live_score_config": tournament.live_score_config or {},
+        "live_score_config": safe_live_score_config(tournament.live_score_config),
         "health": _health_status(tournament, issues, unmapped_non_finished),
         "issues": issues,
         "matches": {
@@ -147,7 +193,7 @@ def get_tournament_live_score_status(
                 "id": match.id,
                 "home_team": match.home_team.name,
                 "away_team": match.away_team.name,
-                "kickoff_time": match.kickoff_time.isoformat(),
+                "kickoff_time": kickoff_isoformat(match.kickoff_time),
                 "status": match.status,
             }
             for match in unmapped
@@ -157,23 +203,26 @@ def get_tournament_live_score_status(
 
 
 def get_live_score_overview() -> dict[str, Any]:
-    tournaments = [
-        get_tournament_live_score_status(tournament)
-        for tournament in Tournament.objects.all().order_by("-year", "name")
-    ]
+    tournament_rows: list[dict[str, Any]] = []
+    for tournament in Tournament.objects.all().order_by("-year", "name"):
+        try:
+            tournament_rows.append(get_tournament_live_score_status(tournament))
+        except Exception as exc:
+            tournament_rows.append(_failed_tournament_status(tournament, exc))
+
     auto_sync_count = sum(
         1
-        for row in tournaments
+        for row in tournament_rows
         if row["live_score_provider"] != Tournament.LiveScoreProvider.MANUAL
     )
     return {
         "environment": get_global_live_score_environment(),
         "summary": {
-            "tournament_count": len(tournaments),
+            "tournament_count": len(tournament_rows),
             "auto_sync_tournament_count": auto_sync_count,
-            "ready_count": sum(1 for row in tournaments if row["health"] == "ready"),
-            "warning_count": sum(1 for row in tournaments if row["health"] == "warning"),
-            "error_count": sum(1 for row in tournaments if row["health"] == "error"),
+            "ready_count": sum(1 for row in tournament_rows if row["health"] == "ready"),
+            "warning_count": sum(1 for row in tournament_rows if row["health"] == "warning"),
+            "error_count": sum(1 for row in tournament_rows if row["health"] == "error"),
         },
-        "tournaments": tournaments,
+        "tournaments": tournament_rows,
     }

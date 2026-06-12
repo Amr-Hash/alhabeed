@@ -358,7 +358,7 @@ export interface LiveScoreUnmappedMatch {
   id: number;
   home_team: string;
   away_team: string;
-  kickoff_time: string;
+  kickoff_time: string | null;
   status: string;
 }
 

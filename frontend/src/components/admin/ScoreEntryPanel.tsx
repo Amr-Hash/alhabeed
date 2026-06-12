@@ -80,7 +80,7 @@ export function ScoreEntryPanel({
       setError(t("enterBothScores"));
       return;
     }
-    if (tied && !draft.winner_team) {
+    if (tied && match.is_knockout && !draft.winner_team) {
       setError(t("selectAdvancingTeamRequired"));
       return;
     }
@@ -91,7 +91,10 @@ export function ScoreEntryPanel({
         status: "finished",
         home_score: home,
         away_score: away,
-        winner_team: tied && draft.winner_team ? Number(draft.winner_team) : null,
+        winner_team:
+          tied && match.is_knockout && draft.winner_team
+            ? Number(draft.winner_team)
+            : null,
       });
       await api.adminRecalculateMatch(token, match.id);
       onSaved();

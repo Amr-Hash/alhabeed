@@ -1,7 +1,20 @@
 import os
 
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+
+
+def _migration_head_ok() -> tuple[bool, list[str]]:
+    try:
+        executor = MigrationExecutor(connection)
+        targets = executor.loader.graph.leaf_nodes()
+        plan = executor.migration_plan(targets)
+        pending = [f"{migration.app_label}.{migration.name}" for migration, _ in plan]
+        return len(plan) == 0, pending
+    except Exception:
+        return False, []
 
 
 @require_GET
@@ -25,22 +38,31 @@ def health(request):
     db_ok = True
     db_error = None
     try:
-        from django.db import connection
-
         connection.ensure_connection()
     except Exception as exc:
         db_ok = False
         db_error = str(exc)
 
-    status = 200 if db_ok else 503
-    return JsonResponse(
-        {
-            "status": "ok" if db_ok else "degraded",
-            "database": "connected" if db_ok else "unavailable",
-            "detail": db_error,
-            "git_sha": os.environ.get("GIT_SHA")
-            or os.environ.get("VERCEL_GIT_COMMIT_SHA")
-            or None,
-        },
-        status=status,
-    )
+    migration_head_ok = False
+    pending_migrations: list[str] = []
+    if db_ok:
+        migration_head_ok, pending_migrations = _migration_head_ok()
+
+    overall_ok = db_ok and migration_head_ok
+    payload = {
+        "status": "ok" if overall_ok else "degraded",
+        "database": "connected" if db_ok else "unavailable",
+        "migration_head_ok": migration_head_ok,
+        "pending_migrations": pending_migrations,
+        "detail": db_error,
+        "git_sha": os.environ.get("GIT_SHA")
+        or os.environ.get("VERCEL_GIT_COMMIT_SHA")
+        or None,
+    }
+    if db_ok and not migration_head_ok:
+        payload["detail"] = (
+            "Database migrations are pending: " + ", ".join(pending_migrations)
+        )
+
+    status_code = 200 if overall_ok else 503
+    return JsonResponse(payload, status=status_code)

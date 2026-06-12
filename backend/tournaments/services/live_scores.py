@@ -131,8 +131,11 @@ def sync_tournament_live_scores(tournament: Tournament) -> dict[str, Any]:
 def _match_in_sync_window(match: Match, now: datetime) -> bool:
     if match.status == Match.Status.LIVE:
         return True
-    start = match.kickoff_time - SYNC_WINDOW_BEFORE
-    end = match.kickoff_time + SYNC_WINDOW_AFTER
+    if not match.kickoff_time:
+        return False
+    kickoff = ensure_aware_datetime(match.kickoff_time)
+    start = kickoff - SYNC_WINDOW_BEFORE
+    end = kickoff + SYNC_WINDOW_AFTER
     return start <= now <= end
 
 

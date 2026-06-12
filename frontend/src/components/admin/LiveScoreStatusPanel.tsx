@@ -216,8 +216,10 @@ function TournamentStatusCard({
           <ul className="max-h-48 space-y-1 overflow-y-auto text-sm text-gray-700">
             {status.unmapped_matches.map((match) => (
               <li key={match.id}>
-                {match.home_team} vs {match.away_team} ·{" "}
-                {new Date(match.kickoff_time).toLocaleString()}
+                {match.home_team} vs {match.away_team}
+                {match.kickoff_time
+                  ? ` · ${new Date(match.kickoff_time).toLocaleString()}`
+                  : null}
               </li>
             ))}
           </ul>
