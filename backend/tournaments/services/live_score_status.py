@@ -7,10 +7,10 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from tournaments.models import Match, Tournament
+from tournaments.services.datetime_utils import ensure_aware_datetime
 from tournaments.services.live_scores import (
     SYNC_WINDOW_AFTER,
     SYNC_WINDOW_BEFORE,
-    ensure_aware_datetime,
     is_sync_window_open,
     parse_sync_bound,
 )

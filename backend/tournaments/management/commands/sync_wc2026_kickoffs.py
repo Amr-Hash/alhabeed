@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from tournaments.services.live_scores import ensure_aware_datetime
+from tournaments.services.datetime_utils import ensure_aware_datetime
 
 from tournaments.models import Match, Tournament
 from tournaments.wc2026_data import WC2026_GROUP_MATCHES, WC2026_TOURNAMENT

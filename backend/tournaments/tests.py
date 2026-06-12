@@ -19,9 +19,9 @@ from tournaments.models import (
     TournamentSubscription,
 )
 from tournaments.services.standing_rules import get_rule_metadata
+from tournaments.services.datetime_utils import ensure_aware_datetime
 from tournaments.services.live_scores import (
     apply_live_match_update,
-    ensure_aware_datetime,
     sync_tournament_live_scores,
 )
 from tournaments.services.team_eligibility import (

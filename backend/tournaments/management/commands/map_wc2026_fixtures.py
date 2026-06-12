@@ -62,7 +62,7 @@ class Command(BaseCommand):
                 kickoff_raw = fixture.get("date")
                 if not kickoff_raw:
                     continue
-                from tournaments.services.live_scores import ensure_aware_datetime
+                from tournaments.services.datetime_utils import ensure_aware_datetime
 
                 kickoff = ensure_aware_datetime(
                     datetime.fromisoformat(kickoff_raw.replace("Z", "+00:00"))

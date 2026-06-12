@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import date, datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import requests
@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from tournaments.models import Match, Tournament
 from tournaments.services.api_football_client import fetch_season_fixtures
+from tournaments.services.datetime_utils import ensure_aware_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +48,6 @@ API_FOOTBALL_STATUS = {
     "AET": Match.Status.FINISHED,
     "PEN": Match.Status.FINISHED,
 }
-
-
-def ensure_aware_datetime(value: datetime) -> datetime:
-    """Normalize kickoff (and similar) datetimes to timezone-aware UTC."""
-    if timezone.is_aware(value):
-        return value
-    return timezone.make_aware(value, dt_timezone.utc)
 
 
 def parse_sync_bound(raw: str) -> date | None:
