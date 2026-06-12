@@ -288,20 +288,24 @@ You can also trigger deploy manually from **Actions → Deploy → Run workflow*
 
 ### World Cup live score sync (API-Football)
 
+**Account:** Register free at [dashboard.api-football.com](https://dashboard.api-football.com/) (no credit card). Copy your API key into `API_FOOTBALL_KEY`. The free plan allows **100 requests/day** across all endpoints — see [API-Football documentation](https://www.api-football.com/documentation-v3).
+
 Add these environment variables on the **alhabeed-api** Vercel project:
 
 | Variable | Purpose |
 |----------|---------|
-| `API_FOOTBALL_KEY` | Key from [api-football.com](https://www.api-football.com/) |
-| `CRON_SECRET` | Random secret; Vercel Cron sends `Authorization: Bearer …` |
+| `API_FOOTBALL_KEY` | Key from your API-Football dashboard |
+| `CRON_SECRET` | Random secret; cron jobs send `Authorization: Bearer …` |
 | `LIVE_SCORE_SYNC_START` | Optional; ISO date e.g. `2026-06-11` |
-| `LIVE_SCORE_SYNC_END` | Optional; ISO date e.g. `2026-06-28` (group stage) |
+| `LIVE_SCORE_SYNC_END` | Optional; ISO date e.g. `2026-07-19` (full tournament) |
+
+**API usage:** Live sync fetches only fixtures in the active match window (15 min before kickoff → 3 hours after), batched up to 20 IDs per request. When no matches are in window, **zero** API calls are made. Cron runs every **15 minutes** (≤96 runs/day; typically 1 request per run during live play). One-time fixture mapping uses a few paginated season requests — run once via **Setup Live Scores**, not on every poll.
 
 After deploy:
 
 1. Run `node scripts/setup-live-scores.mjs` (sets `CRON_SECRET` on GitHub; with `VERCEL_TOKEN` also syncs Vercel and maps fixtures).
 2. Or use **Actions → Setup Live Scores → Run workflow** (uses `VERCEL_TOKEN` + `CRON_SECRET` from GitHub secrets, syncs Vercel env, redeploys API, maps fixtures).
-3. GitHub Actions (`.github/workflows/live-score-sync.yml`) calls `/api/cron/sync-live-scores` every 5 minutes.
+3. **Live Score Sync** workflow calls `/api/cron/sync-live-scores` every 15 minutes. **Match Reminders** runs every 5 minutes (push only; no API-Football usage).
 4. Admin can still use **Sync live scores now** on the tournaments page.
 
 Live scores update match `status` and display scores; prediction points are awarded only when a match reaches `finished`.

@@ -1,11 +1,12 @@
 name: Live Score Sync
 
-# Vercel Hobby allows at most one cron per day; use GitHub Actions every 5 minutes for
-# live scores. Match kickoff push reminders run on the same schedule when VAPID is configured.
+# Free API-Football plan: 100 requests/day. Sync uses batched fixture IDs only
+# during match windows (0 API calls when no matches are active). Poll every 15
+# minutes → up to 96 cron runs/day, typically 1 API request per run when live.
 # Set CRON_SECRET in repo secrets (same value as alhabeed-api on Vercel).
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -23,6 +24,3 @@ jobs:
           curl -sf -X GET \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             "https://alhabeed-api.vercel.app/api/cron/sync-live-scores"
-          curl -sf -X GET \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            "https://alhabeed-api.vercel.app/api/cron/send-match-reminders"

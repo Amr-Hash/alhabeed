@@ -876,20 +876,21 @@ class LiveScoreSyncTests(TestCase):
         self.assertGreater(self.prediction.points_awarded, 0)
 
     @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
-    @patch("tournaments.services.live_scores.fetch_season_fixtures")
+    @patch("tournaments.services.live_scores.fetch_fixtures_by_ids")
     def test_api_football_sync_live_does_not_award_points(self, mock_fetch):
-        mock_fetch.return_value = [self._fixture_payload(short_status="2H", home=1, away=0)]
+        mock_fetch.return_value = ([self._fixture_payload(short_status="2H", home=1, away=0)], 1)
         result = sync_tournament_live_scores(self.tournament)
         self.assertEqual(result["updated"], 1)
+        self.assertEqual(result["api_requests"], 1)
         self.prediction.refresh_from_db()
         self.match.refresh_from_db()
         self.assertEqual(self.match.status, Match.Status.LIVE)
         self.assertEqual(self.prediction.points_awarded, 0)
 
     @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
-    @patch("tournaments.services.live_scores.fetch_season_fixtures")
+    @patch("tournaments.services.live_scores.fetch_fixtures_by_ids")
     def test_api_football_sync_finished_awards_points(self, mock_fetch):
-        mock_fetch.return_value = [self._fixture_payload(short_status="FT", home=2, away=1)]
+        mock_fetch.return_value = ([self._fixture_payload(short_status="FT", home=2, away=1)], 1)
         result = sync_tournament_live_scores(self.tournament)
         self.assertEqual(result["updated"], 1)
         self.prediction.refresh_from_db()
@@ -898,7 +899,17 @@ class LiveScoreSyncTests(TestCase):
         self.assertGreater(self.prediction.points_awarded, 0)
 
     @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
-    @patch("tournaments.services.live_scores.fetch_season_fixtures", return_value=[])
+    @patch("tournaments.services.live_scores.fetch_fixtures_by_ids")
+    def test_api_football_sync_skips_api_outside_match_window(self, mock_fetch):
+        self.match.kickoff_time = timezone.now() + timedelta(days=2)
+        self.match.save(update_fields=["kickoff_time"])
+        result = sync_tournament_live_scores(self.tournament)
+        mock_fetch.assert_not_called()
+        self.assertEqual(result["api_requests"], 0)
+        self.assertEqual(result["updated"], 0)
+
+    @patch.dict(os.environ, {"API_FOOTBALL_KEY": "test-key"}, clear=False)
+    @patch("tournaments.services.live_scores.fetch_fixtures_by_ids", return_value=([], 0))
     def test_admin_sync_tolerates_naive_kickoff(self, _mock_fetch):
         from datetime import datetime
 

@@ -21,7 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from tournaments.models import Match, Tournament
-from tournaments.services.api_football_client import fetch_season_fixtures
+from tournaments.services.api_football_client import fetch_fixtures_by_ids
 from tournaments.services.datetime_utils import ensure_aware_datetime
 
 logger = logging.getLogger(__name__)
@@ -154,44 +154,57 @@ def _sync_api_football(tournament: Tournament) -> dict[str, Any]:
         )
         return {"updated": 0, "skipped": 0, "error": "missing_config"}
 
+    now = timezone.now()
     try:
-        fixtures = fetch_season_fixtures(int(league_id), int(season))
+        matches = list(
+            Match.objects.filter(tournament=tournament)
+            .exclude(status=Match.Status.FINISHED)
+            .select_related("home_team", "away_team")
+        )
+        fixture_ids: list[str] = []
+        matches_by_external_id: dict[str, Match] = {}
+        skipped = 0
+
+        for match in matches:
+            ext_id = (match.external_fixture_id or "").strip()
+            if not ext_id:
+                skipped += 1
+                continue
+            if not _match_in_sync_window(match, now):
+                skipped += 1
+                continue
+            if ext_id not in matches_by_external_id:
+                fixture_ids.append(ext_id)
+                matches_by_external_id[ext_id] = match
+
+        if not fixture_ids:
+            return {"updated": 0, "skipped": skipped, "api_requests": 0}
+
+        payloads, api_requests = fetch_fixtures_by_ids(fixture_ids)
     except (requests.RequestException, ValueError) as exc:
         logger.exception("API-Football request failed: %s", exc)
         return {"updated": 0, "skipped": 0, "error": "request_failed"}
 
     by_external_id = {
         str(item["fixture"]["id"]): item
-        for item in fixtures
+        for item in payloads
         if item.get("fixture", {}).get("id")
     }
 
-    now = timezone.now()
     updated = 0
-    skipped = 0
-    matches = Match.objects.filter(tournament=tournament).exclude(
-        status=Match.Status.FINISHED
-    )
 
     with transaction.atomic():
-        for match in matches.select_for_update():
-            ext_id = (match.external_fixture_id or "").strip()
-            if not ext_id or ext_id not in by_external_id:
+        for ext_id, match in matches_by_external_id.items():
+            payload = by_external_id.get(ext_id)
+            if not payload:
                 skipped += 1
                 continue
-            if not _match_in_sync_window(match, now):
-                payload = by_external_id[ext_id]
-                short = ((payload.get("fixture") or {}).get("status") or {}).get("short")
-                if short not in {"FT", "AET", "PEN"}:
-                    skipped += 1
-                    continue
-            payload = by_external_id[ext_id]
             if _apply_api_football_payload(match, payload):
                 updated += 1
             else:
                 skipped += 1
 
-    return {"updated": updated, "skipped": skipped}
+    return {"updated": updated, "skipped": skipped, "api_requests": api_requests}
 
 
 def _apply_api_football_payload(match: Match, payload: dict[str, Any]) -> bool:

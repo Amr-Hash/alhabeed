@@ -37,3 +37,32 @@ def fetch_season_fixtures(league_id: int, season: int) -> list[dict[str, Any]]:
         page += 1
 
     return fixtures
+
+
+def fetch_fixtures_by_ids(fixture_ids: list[str | int]) -> tuple[list[dict[str, Any]], int]:
+    """
+    Fetch fixture payloads by ID (max 20 IDs per request).
+    Returns (fixtures, api_request_count).
+    """
+    ids = [str(item).strip() for item in fixture_ids if str(item).strip()]
+    if not ids:
+        return [], 0
+
+    headers = api_football_headers()
+    fixtures: list[dict[str, Any]] = []
+    api_requests = 0
+
+    for start in range(0, len(ids), 20):
+        chunk = ids[start : start + 20]
+        res = requests.get(
+            f"{API_FOOTBALL_BASE}/fixtures",
+            headers=headers,
+            params={"ids": "-".join(chunk)},
+            timeout=30,
+        )
+        res.raise_for_status()
+        body = res.json()
+        fixtures.extend(body.get("response") or [])
+        api_requests += 1
+
+    return fixtures, api_requests

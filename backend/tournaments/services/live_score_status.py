@@ -44,7 +44,8 @@ def get_global_live_score_environment() -> dict[str, Any]:
         "sync_window_open": is_sync_window_open(),
         "sync_window_start": start.isoformat() if start else (start_raw or None),
         "sync_window_end": end.isoformat() if end else (end_raw or None),
-        "cron_schedule": "every_5_minutes",
+        "cron_schedule": "every_15_minutes",
+        "api_football_free_daily_limit": 100,
     }
 
 
