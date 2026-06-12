@@ -299,9 +299,9 @@ Add these environment variables on the **alhabeed-api** Vercel project:
 
 After deploy:
 
-1. Set `CRON_SECRET` in GitHub Actions secrets (same value as on Vercel).
-2. Run `python manage.py map_wc2026_fixtures` once against production (maps 72 group fixtures).
-3. GitHub Actions (`.github/workflows/live-score-sync.yml`) calls `/api/cron/sync-live-scores` every 5 minutes. On Vercel Pro you can instead add a `crons` entry in `backend/vercel.json` with `*/2 * * * *`.
+1. Run `node scripts/setup-live-scores.mjs` (sets `CRON_SECRET` on GitHub; with `VERCEL_TOKEN` also syncs Vercel and maps fixtures).
+2. Or use **Actions → Setup Live Scores → Run workflow** (uses `VERCEL_TOKEN` + `CRON_SECRET` from GitHub secrets, syncs Vercel env, redeploys API, maps fixtures).
+3. GitHub Actions (`.github/workflows/live-score-sync.yml`) calls `/api/cron/sync-live-scores` every 5 minutes.
 4. Admin can still use **Sync live scores now** on the tournaments page.
 
 Live scores update match `status` and display scores; prediction points are awarded only when a match reaches `finished`.

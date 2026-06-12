@@ -1,0 +1,46 @@
+name: Setup Live Scores
+
+on:
+  workflow_dispatch:
+
+jobs:
+  configure-and-map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sync live score env vars to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node scripts/sync-vercel-live-score-env.mjs
+
+      - name: Deploy backend so CRON_SECRET is live
+        working-directory: backend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_4Xmlf7t3YpurUX6c1nZH0ra0
+          VERCEL_PROJECT_ID: prj_FRxuskySw6XocyTyrftLpgZw2baf
+          PRODUCTION_ALIAS: alhabeed-api.vercel.app
+          GITHUB_SHA: ${{ github.sha }}
+        run: bash ../.github/scripts/vercel-deploy.sh
+
+      - name: Map WC 2026 fixtures and trigger sync
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "Waiting 30s for deployment to serve new env..."
+          sleep 30
+          echo "Mapping fixtures..."
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://alhabeed-api.vercel.app/api/cron/map-wc2026-fixtures"
+          echo ""
+          echo "Triggering sync..."
+          curl -sf -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://alhabeed-api.vercel.app/api/cron/sync-live-scores"

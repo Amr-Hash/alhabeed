@@ -412,3 +412,21 @@ def cron_sync_live_scores(request):
 
     tournaments = sync_all_configured_tournaments()
     return Response({"tournaments": tournaments})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([permissions.AllowAny])
+def cron_map_wc2026_fixtures(request):
+    """
+    Map WC 2026 group fixtures to API-Football IDs on production.
+    Authorization: Bearer <CRON_SECRET>
+    """
+    if not _authorize_cron_request(request):
+        return Response({"detail": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    from tournaments.services.wc2026_fixture_mapping import map_wc2026_group_fixtures
+
+    dry_run = request.query_params.get("dry_run", "").lower() in {"1", "true", "yes"}
+    result = map_wc2026_group_fixtures(dry_run=dry_run)
+    status_code = status.HTTP_200_OK if result.get("ok") else status.HTTP_400_BAD_REQUEST
+    return Response(result, status=status_code)

@@ -827,6 +827,19 @@ class LiveScoreSyncTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("tournaments", response.data)
 
+    @patch.dict(os.environ, {"CRON_SECRET": "test-cron-secret"})
+    @patch(
+        "tournaments.services.wc2026_fixture_mapping.map_wc2026_group_fixtures",
+        return_value={"ok": True, "mapped": 72, "unmatched": 0, "ambiguous": 0},
+    )
+    def test_cron_map_wc2026_fixtures(self, _mock_map):
+        response = self.client.post(
+            "/api/cron/map-wc2026-fixtures",
+            HTTP_X_CRON_SECRET="test-cron-secret",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["ok"])
+
     def test_apply_live_update_does_not_award_points(self):
         apply_live_match_update(
             self.match,
