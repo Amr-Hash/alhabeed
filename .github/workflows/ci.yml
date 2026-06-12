@@ -38,6 +38,9 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Verify Python deps match pyproject.toml
+        run: python scripts/check_python_deps.py
+
       - name: Run migrations
         working-directory: backend
         env:
