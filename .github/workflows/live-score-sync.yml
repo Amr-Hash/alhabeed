@@ -1,7 +1,7 @@
 name: Live Score Sync
 
 # Vercel Hobby allows at most one cron per day; use GitHub Actions every 5 minutes for
-# live scores and match kickoff reminders (1 hour before kickoff).
+# live scores. Match kickoff push reminders run on the same schedule when VAPID is configured.
 # Set CRON_SECRET in repo secrets (same value as alhabeed-api on Vercel).
 on:
   schedule:

@@ -242,16 +242,6 @@ body {
     @apply inline-block h-3 w-3 animate-pulse rounded-full bg-fan-400 shadow-[0_0_8px_rgba(249,115,22,0.8)];
   }
 
-  .app-main {
-    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  @media (min-width: 768px) {
-    .app-main {
-      padding-bottom: 2rem;
-    }
-  }
-
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

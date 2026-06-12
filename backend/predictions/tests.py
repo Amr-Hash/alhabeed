@@ -877,3 +877,70 @@ class NotificationTests(TestCase):
         self.assertEqual(
             self.user_client.get("/api/notifications").data["unread_count"], 0
         )
+
+
+class DashboardPendingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="dashuser",
+            email="dash@example.com",
+            password="pass12345",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.tournament = Tournament.objects.create(
+            name="Dash Cup",
+            year=2026,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+        )
+        self.stage = Stage.objects.create(
+            tournament=self.tournament,
+            name="MD1",
+            order=1,
+            stage_type=Stage.StageType.GROUP,
+        )
+        self.home = Team.objects.create(name="Home", code="HOM")
+        self.away = Team.objects.create(name="Away", code="AWY")
+
+    def _create_open_match(self, *, offset_hours: int):
+        return Match.objects.create(
+            tournament=self.tournament,
+            stage=self.stage,
+            home_team=self.home,
+            away_team=self.away,
+            kickoff_time=timezone.now() + timedelta(hours=offset_hours),
+            status=Match.Status.SCHEDULED,
+            matchday=1,
+        )
+
+    def test_dashboard_returns_all_predictable_matches_not_only_ten(self):
+        for index in range(12):
+            self._create_open_match(offset_hours=24 + index)
+
+        response = self.client.get(f"/api/dashboard?tournament={self.tournament.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pending_count"], 12)
+        self.assertEqual(len(response.data["pending_predictions"]), 12)
+        self.assertEqual(len(response.data["upcoming_matches"]), 12)
+
+    def test_dashboard_excludes_locked_and_predicted_matches(self):
+        open_match = self._create_open_match(offset_hours=48)
+        locked_match = self._create_open_match(offset_hours=72)
+        locked_match.kickoff_time = timezone.now() - timedelta(minutes=5)
+        locked_match.save(update_fields=["kickoff_time"])
+        predicted_match = self._create_open_match(offset_hours=96)
+        Prediction.objects.create(
+            user=self.user,
+            match=predicted_match,
+            predicted_home_score=1,
+            predicted_away_score=0,
+        )
+
+        response = self.client.get(f"/api/dashboard?tournament={self.tournament.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        pending_ids = {row["id"] for row in response.data["pending_predictions"]}
+        self.assertIn(open_match.id, pending_ids)
+        self.assertNotIn(locked_match.id, pending_ids)
+        self.assertNotIn(predicted_match.id, pending_ids)
+        self.assertEqual(response.data["pending_count"], 1)

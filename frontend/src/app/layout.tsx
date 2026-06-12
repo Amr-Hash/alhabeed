@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <TournamentProvider>
               <Navbar />
               <StaffGuard>
-                <main className="app-main mx-auto min-h-screen max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <main className="mx-auto min-h-screen max-w-7xl px-4 pt-6 pb-nav-safe sm:px-6 sm:pt-8 md:pb-8 lg:px-8">
                   {children}
                 </main>
               </StaffGuard>

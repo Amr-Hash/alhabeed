@@ -28,6 +28,33 @@ class PushSubscription(models.Model):
         return f"PushSubscription user={self.user_id}"
 
 
+class KickoffReminderSent(models.Model):
+    """Tracks Web Push kickoff reminders so we do not duplicate delivery."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="kickoff_reminders_sent",
+    )
+    match = models.ForeignKey(
+        "tournaments.Match",
+        on_delete=models.CASCADE,
+        related_name="kickoff_reminders_sent",
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "match"],
+                name="notifications_kickoff_reminder_once",
+            ),
+        ]
+
+    def __str__(self):
+        return f"kickoff reminder user={self.user_id} match={self.match_id}"
+
+
 class Notification(models.Model):
     class Type(models.TextChoices):
         MATCH_RESULT = "match_result", "Match result"

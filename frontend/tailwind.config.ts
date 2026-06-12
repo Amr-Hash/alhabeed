@@ -75,6 +75,12 @@ const config: Config = {
         card: "0 4px 14px -2px rgba(12, 27, 51, 0.08)",
         "card-hover": "0 8px 24px -4px rgba(12, 27, 51, 0.14)",
       },
+      spacing: {
+        "nav-safe": "calc(5.75rem + env(safe-area-inset-bottom, 0px))",
+      },
+      height: {
+        "mobile-nav": "calc(4.25rem + env(safe-area-inset-bottom, 0px))",
+      },
     },
   },
   plugins: [],

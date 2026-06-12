@@ -126,18 +126,11 @@ function DashboardContent() {
                 {t("predictNow")}
               </Link>
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {dashboard.pending_predictions.map((m) => (
                 <MatchCard key={m.id} match={m} prediction={predictionsByMatch[m.id]} showPredictLink />
               ))}
             </div>
-            {pendingCount > dashboard.pending_predictions.length && (
-              <p className="mt-3 text-center text-sm text-gray-500">
-                <Link href="/matches" className="font-semibold text-white hover:underline">
-                  {t("browseMatches")} →
-                </Link>
-              </p>
-            )}
           </div>
         </section>
       )}
@@ -178,7 +171,7 @@ function DashboardContent() {
       <section className="mb-8">
         <h2 className="section-heading-fan mb-4 text-base normal-case tracking-normal">{t("upcomingMatches")}</h2>
         {hasUpcoming ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {dashboard.upcoming_matches.map((m) => (
               <MatchCard key={m.id} match={m} prediction={predictionsByMatch[m.id]} showPredictLink />
             ))}

@@ -1,11 +1,12 @@
 from datetime import timedelta
+import os
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from notifications.models import Notification
+from notifications.models import KickoffReminderSent, Notification, PushSubscription
 from notifications.services.match_reminders import send_match_kickoff_reminders
 from predictions.models import Prediction
 from tournaments.models import Match, Stage, Team, Tournament, TournamentSubscription
@@ -13,6 +14,15 @@ from tournaments.models import Match, Stage, Team, Tournament, TournamentSubscri
 User = get_user_model()
 
 
+@patch.dict(
+    os.environ,
+    {
+        "VAPID_PUBLIC_KEY": "test-public",
+        "VAPID_PRIVATE_KEY": "test-private",
+        "VAPID_ADMIN_EMAIL": "test@example.com",
+    },
+    clear=False,
+)
 class MatchKickoffReminderTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -53,66 +63,71 @@ class MatchKickoffReminderTests(TestCase):
         )
         TournamentSubscription.objects.create(user=self.user, tournament=self.tournament)
         TournamentSubscription.objects.create(user=self.other, tournament=self.tournament)
+        PushSubscription.objects.create(
+            user=self.user,
+            endpoint="https://push.example/fan1",
+            p256dh="p256dh",
+            auth="auth",
+        )
+        PushSubscription.objects.create(
+            user=self.other,
+            endpoint="https://push.example/fan2",
+            p256dh="p256dh2",
+            auth="auth2",
+        )
+
+    def test_disabled_when_push_not_configured(self):
+        with patch.dict(os.environ, {"VAPID_PUBLIC_KEY": ""}, clear=False):
+            result = send_match_kickoff_reminders()
+
+        self.assertFalse(result["enabled"])
+        self.assertEqual(result["push_sent"], 0)
+        self.assertEqual(KickoffReminderSent.objects.count(), 0)
 
     @patch("notifications.services.match_reminders.send_push_to_user", return_value=1)
-    def test_creates_reminder_with_prediction_payload(self, mock_push):
+    def test_sends_push_only_to_subscribed_users_with_push(self, mock_push):
         result = send_match_kickoff_reminders()
 
+        self.assertTrue(result["enabled"])
         self.assertEqual(result["matches"], 1)
-        self.assertEqual(result["created"], 2)
-        notification = Notification.objects.get(
-            user=self.user,
-            dedup_key=f"match_kickoff_reminder:{self.match.id}",
-        )
-        self.assertEqual(
-            notification.notification_type,
-            Notification.Type.MATCH_KICKOFF_REMINDER,
-        )
-        self.assertTrue(notification.payload["has_prediction"])
-        self.assertEqual(notification.payload["predicted_home_score"], 2)
-        self.assertEqual(notification.payload["predicted_away_score"], 1)
-        mock_push.assert_called()
-
-    @patch("notifications.services.match_reminders.send_push_to_user", return_value=0)
-    def test_dedup_skips_second_run(self, mock_push):
-        send_match_kickoff_reminders()
-        result = send_match_kickoff_reminders()
-
-        self.assertEqual(result["created"], 0)
+        self.assertEqual(result["eligible_users"], 2)
+        self.assertEqual(result["push_sent"], 2)
+        self.assertEqual(mock_push.call_count, 2)
+        self.assertEqual(KickoffReminderSent.objects.count(), 2)
         self.assertEqual(
             Notification.objects.filter(
                 notification_type=Notification.Type.MATCH_KICKOFF_REMINDER
             ).count(),
-            2,
+            0,
         )
+
+    @patch("notifications.services.match_reminders.send_push_to_user", return_value=1)
+    def test_dedup_skips_second_run(self, mock_push):
+        send_match_kickoff_reminders()
+        result = send_match_kickoff_reminders()
+
+        self.assertEqual(result["eligible_users"], 0)
+        self.assertEqual(result["push_sent"], 0)
         self.assertEqual(mock_push.call_count, 2)
 
     @patch("notifications.services.match_reminders.send_push_to_user", return_value=0)
-    def test_no_prediction_payload_for_user_without_pick(self, mock_push):
-        send_match_kickoff_reminders()
+    def test_skips_users_without_push_subscription(self, mock_push):
+        PushSubscription.objects.filter(user=self.other).delete()
 
-        notification = Notification.objects.get(
-            user=self.other,
-            dedup_key=f"match_kickoff_reminder:{self.match.id}",
-        )
-        self.assertFalse(notification.payload["has_prediction"])
-        self.assertIsNone(notification.payload["predicted_home_score"])
+        result = send_match_kickoff_reminders()
+
+        self.assertEqual(result["eligible_users"], 1)
+        self.assertEqual(mock_push.call_count, 1)
+        self.assertEqual(KickoffReminderSent.objects.count(), 0)
 
     @patch("notifications.services.match_reminders.send_push_to_user", return_value=0)
     def test_skips_users_not_subscribed_to_tournament(self, mock_push):
-        unsubscribed = User.objects.create_user(
-            username="outsider",
-            email="outsider@test.com",
-            password="pass12345",
-        )
-        TournamentSubscription.objects.filter(user=unsubscribed).delete()
-        send_match_kickoff_reminders()
-        self.assertFalse(
-            Notification.objects.filter(
-                user=unsubscribed,
-                dedup_key=f"match_kickoff_reminder:{self.match.id}",
-            ).exists()
-        )
+        TournamentSubscription.objects.filter(user=self.other).delete()
+
+        result = send_match_kickoff_reminders()
+
+        self.assertEqual(result["eligible_users"], 1)
+        self.assertEqual(mock_push.call_count, 1)
 
     @patch("notifications.services.match_reminders.send_push_to_user", return_value=0)
     def test_ignores_matches_outside_window(self, mock_push):
@@ -122,4 +137,4 @@ class MatchKickoffReminderTests(TestCase):
         result = send_match_kickoff_reminders()
 
         self.assertEqual(result["matches"], 0)
-        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(mock_push.call_count, 0)

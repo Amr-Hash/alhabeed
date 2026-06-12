@@ -45,7 +45,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-night-900/95 backdrop-blur-md md:hidden"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-50 min-h-mobile-nav border-t border-white/10 bg-night-900/95 backdrop-blur-md md:hidden"
       aria-label={t("mobileNav")}
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">

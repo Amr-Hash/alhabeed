@@ -59,7 +59,7 @@ export const messages = {
     chooseTournament: "Choose a tournament",
     subscribeTournamentTitle: "Subscribe to a tournament",
     subscribeTournamentDesc:
-      "Pick the tournaments you want to follow. You will get match reminders and standings for your subscriptions.",
+      "Pick the tournaments you want to follow. You will get standings and updates for your subscriptions.",
     subscribeTournament: "Subscribe",
     subscribeTournamentFailed: "Could not subscribe to this tournament.",
     chooseTournamentDesc:
@@ -577,7 +577,7 @@ export const messages = {
     chooseTournament: "اختر بطولة",
     subscribeTournamentTitle: "اشترك في بطولة",
     subscribeTournamentDesc:
-      "اختر البطولات التي تريد متابعتها. ستصلك تذكيرات المباريات وترتيب المجموعات لاشتراكاتك.",
+      "اختر البطولات التي تريد متابعتها. ستصلك ترتيب المجموعات وتحديثات اشتراكاتك.",
     subscribeTournament: "اشتراك",
     subscribeTournamentFailed: "تعذّر الاشتراك في هذه البطولة.",
     chooseTournamentDesc:

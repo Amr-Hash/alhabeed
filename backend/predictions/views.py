@@ -89,32 +89,27 @@ class DashboardView(APIView):
             base_matches_qs = base_matches_qs.filter(tournament_id=tournament_id)
 
         now = timezone.now()
-        upcoming = (
-            base_matches_qs.exclude(status=Match.Status.FINISHED)
-            .filter(kickoff_time__gt=now)
-            .order_by("kickoff_time")[:10]
+        non_finished = list(
+            base_matches_qs.exclude(status=Match.Status.FINISHED).order_by("kickoff_time")
         )
+        upcoming = [match for match in non_finished if match.kickoff_time > now]
         live_matches = (
             base_matches_qs.exclude(status=Match.Status.FINISHED)
             .filter(Q(status=Match.Status.LIVE) | Q(kickoff_time__lte=now))
             .order_by("-kickoff_time")[:10]
         )
-        next_match = (
-            base_matches_qs.exclude(status=Match.Status.FINISHED)
-            .filter(kickoff_time__gt=now)
-            .order_by("kickoff_time")
-            .first()
-        )
+        next_match = upcoming[0] if upcoming else None
 
         predictions_qs = Prediction.objects.filter(user=user)
         if tournament_id:
             predictions_qs = predictions_qs.filter(match__tournament_id=tournament_id)
 
         predicted_match_ids = set(predictions_qs.values_list("match_id", flat=True))
-        pending = []
-        for match in upcoming:
-            if match.id not in predicted_match_ids and not match.is_locked:
-                pending.append(match)
+        pending = [
+            match
+            for match in non_finished
+            if match.id not in predicted_match_ids and not match.is_locked
+        ]
 
         recent_results_qs = Match.objects.filter(
             status=Match.Status.FINISHED
@@ -127,7 +122,6 @@ class DashboardView(APIView):
 
         from tournaments.serializers import MatchSerializer
 
-        pending_slice = pending[:10]
         serializer_context = {"request": request}
 
         from predictions.services.leaderboard import (
@@ -158,7 +152,7 @@ class DashboardView(APIView):
                     else None
                 ),
                 "pending_predictions": MatchSerializer(
-                    pending_slice, many=True, context=serializer_context
+                    pending, many=True, context=serializer_context
                 ).data,
                 "pending_count": len(pending),
                 "recent_results": MatchSerializer(

@@ -4,10 +4,29 @@ import { useMemo } from "react";
 import { DashboardPodiumEntry } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
+/** Silver left, gold center (tallest), bronze right — heights are fixed by medal, not headcount. */
 const PODIUM_SLOTS = [
-  { rank: 2, medal: "🥈", height: "h-20", platform: "from-slate-300 to-slate-100" },
-  { rank: 1, medal: "🥇", height: "h-28", platform: "from-gold-500 to-gold-200" },
-  { rank: 3, medal: "🥉", height: "h-14", platform: "from-amber-700 to-amber-400" },
+  {
+    rank: 2,
+    medal: "🥈",
+    heightClass: "h-20",
+    platform: "from-slate-300 to-slate-100",
+    edge: "border-slate-400/40",
+  },
+  {
+    rank: 1,
+    medal: "🥇",
+    heightClass: "h-28",
+    platform: "from-gold-500 to-gold-200",
+    edge: "border-gold-600/40",
+  },
+  {
+    rank: 3,
+    medal: "🥉",
+    heightClass: "h-14",
+    platform: "from-amber-700 to-amber-400",
+    edge: "border-amber-800/40",
+  },
 ] as const;
 
 export function OlympicPodium({ podium }: { podium: DashboardPodiumEntry[] }) {
@@ -28,39 +47,40 @@ export function OlympicPodium({ podium }: { podium: DashboardPodiumEntry[] }) {
       {PODIUM_SLOTS.map((slot) => {
         const entries = byRank[slot.rank];
         const points = entries[0]?.total_points;
-        const slotHeight =
-          entries.length > 2 ? "min-h-[5.5rem]" : entries.length > 1 ? "min-h-[4.5rem]" : slot.height;
 
         return (
-          <div key={slot.rank} className="flex w-[31%] flex-col items-center">
-            <span className="text-xl sm:text-2xl" aria-hidden>
-              {slot.medal}
-            </span>
-            {entries.length > 0 ? (
-              <div className="mt-1 w-full space-y-0.5 px-0.5 text-center">
-                {entries.map((entry) => (
-                  <p
-                    key={entry.user_id}
-                    className={`truncate text-[10px] font-bold leading-tight sm:text-xs ${
-                      entry.is_you ? "text-royal-600" : "text-night-900"
-                    }`}
-                    title={entry.username}
-                  >
-                    {entry.username}
-                    {entry.is_you && (
-                      <span className="font-semibold text-royal-500"> ({t("you")})</span>
-                    )}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-gray-400">—</p>
-            )}
+          <div key={slot.rank} className="flex w-[31%] max-w-[7.5rem] flex-col items-center">
+            <div className="mb-1.5 flex min-h-[3.5rem] w-full flex-col items-center justify-end gap-0.5 px-0.5 text-center">
+              <span className="text-xl leading-none sm:text-2xl" aria-hidden>
+                {slot.medal}
+              </span>
+              {entries.length > 0 ? (
+                <div className="max-h-16 w-full space-y-0.5 overflow-y-auto">
+                  {entries.map((entry) => (
+                    <p
+                      key={entry.user_id}
+                      className={`truncate text-[10px] font-bold leading-tight sm:text-xs ${
+                        entry.is_you ? "text-royal-600" : "text-night-900"
+                      }`}
+                      title={entry.username}
+                    >
+                      {entry.username}
+                      {entry.is_you && (
+                        <span className="font-semibold text-royal-500"> ({t("you")})</span>
+                      )}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">—</p>
+              )}
+            </div>
+
             <div
-              className={`mt-2 flex w-full ${slotHeight} items-end justify-center rounded-t-xl bg-gradient-to-t ${slot.platform} px-1 pb-1.5 shadow-inner`}
+              className={`flex w-full ${slot.heightClass} flex-col items-center justify-end rounded-t-lg border-x border-t bg-gradient-to-t ${slot.platform} ${slot.edge} px-1 pb-1.5 shadow-[inset_0_2px_4px_rgba(255,255,255,0.35)]`}
             >
-              {points != null && (
-                <span className="font-display text-sm font-extrabold text-night-900/80">
+              {points != null ? (
+                <span className="font-display text-sm font-extrabold text-night-900/85">
                   {points}
                   {entries.length > 1 && (
                     <span className="block text-[9px] font-semibold normal-case opacity-70">
@@ -68,7 +88,7 @@ export function OlympicPodium({ podium }: { podium: DashboardPodiumEntry[] }) {
                     </span>
                   )}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         );
