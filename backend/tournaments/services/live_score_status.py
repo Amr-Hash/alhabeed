@@ -9,13 +9,17 @@ from django.utils import timezone
 
 from tournaments.models import Match, Tournament
 from tournaments.services.datetime_utils import ensure_aware_datetime
+from tournaments.services.football_data import (
+    DEFAULT_COMPETITION_CODE,
+    resolve_api_token,
+    resolve_competition_code,
+)
 from tournaments.services.live_scores import (
     SYNC_WINDOW_AFTER,
     SYNC_WINDOW_BEFORE,
     is_sync_window_open,
     parse_sync_bound,
 )
-from tournaments.services.score_scraper import resolve_scores_url
 
 logger = logging.getLogger(__name__)
 
@@ -37,17 +41,14 @@ def get_global_live_score_environment() -> dict[str, Any]:
     end_raw = os.environ.get("LIVE_SCORE_SYNC_END", "").strip()
     start = parse_sync_bound(start_raw)
     end = parse_sync_bound(end_raw)
-    default_url = resolve_scores_url({})
     return {
         "cron_secret_configured": bool(os.environ.get("CRON_SECRET", "").strip()),
         "sync_window_open": is_sync_window_open(),
         "sync_window_start": start.isoformat() if start else (start_raw or None),
         "sync_window_end": end.isoformat() if end else (end_raw or None),
         "cron_schedule": "every_15_minutes",
-        "default_scrape_url": default_url,
-        "scrape_url_configured": bool(
-            os.environ.get("LIVE_SCORE_SCRAPE_URL", "").strip() or default_url
-        ),
+        "football_data_api_configured": bool(resolve_api_token()),
+        "default_competition_code": DEFAULT_COMPETITION_CODE,
     }
 
 
@@ -56,10 +57,9 @@ def _config_issues(tournament: Tournament) -> list[str]:
         return []
 
     issues: list[str] = []
-    config = safe_live_score_config(tournament.live_score_config)
-    if tournament.live_score_provider == Tournament.LiveScoreProvider.SCRAPING:
-        if not resolve_scores_url(config):
-            issues.append("missing_scrape_url")
+    if tournament.live_score_provider == Tournament.LiveScoreProvider.FOOTBALL_DATA:
+        if not resolve_api_token():
+            issues.append("missing_api_token")
 
     if not is_sync_window_open():
         issues.append("outside_sync_window")
@@ -70,7 +70,7 @@ def _config_issues(tournament: Tournament) -> list[str]:
 def _health_status(tournament: Tournament, issues: list[str]) -> str:
     if tournament.live_score_provider == Tournament.LiveScoreProvider.MANUAL:
         return "manual"
-    blocking = {issue for issue in issues if issue in {"missing_scrape_url"}}
+    blocking = {issue for issue in issues if issue in {"missing_api_token"}}
     if blocking:
         return "error"
     if "outside_sync_window" in issues:
@@ -144,7 +144,11 @@ def get_tournament_live_score_status(
         "is_archived": tournament.is_archived,
         "live_score_provider": tournament.live_score_provider,
         "live_score_config": config,
-        "scores_url": resolve_scores_url(config) if config or tournament.live_score_provider == Tournament.LiveScoreProvider.SCRAPING else None,
+        "competition_code": (
+            resolve_competition_code(config)
+            if tournament.live_score_provider == Tournament.LiveScoreProvider.FOOTBALL_DATA
+            else None
+        ),
         "health": _health_status(tournament, issues),
         "issues": issues,
         "matches": {
@@ -156,7 +160,7 @@ def get_tournament_live_score_status(
         },
     }
 
-    if detailed and tournament.live_score_provider == Tournament.LiveScoreProvider.SCRAPING:
+    if detailed and tournament.live_score_provider == Tournament.LiveScoreProvider.FOOTBALL_DATA:
         upcoming = (
             matches.filter(status__in=[Match.Status.SCHEDULED, Match.Status.LIVE])
             .select_related("home_team", "away_team")

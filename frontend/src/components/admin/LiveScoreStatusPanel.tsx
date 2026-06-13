@@ -15,11 +15,11 @@ import type { MessageKey } from "@/lib/messages";
 
 const PROVIDER_KEYS: Record<string, MessageKey> = {
   manual: "adminLiveScoreManual",
-  scraping: "adminLiveScoreScraping",
+  football_data: "adminLiveScoreFootballData",
 };
 
 const ISSUE_KEYS: Record<string, MessageKey> = {
-  missing_scrape_url: "adminLiveScoreIssueMissingScrapeUrl",
+  missing_api_token: "adminLiveScoreIssueMissingApiToken",
   outside_sync_window: "adminLiveScoreIssueOutsideWindow",
 };
 
@@ -100,9 +100,9 @@ function EnvironmentCard({ environment }: { environment: LiveScoreEnvironment })
         )}
       />
       <EnvRow
-        label={t("adminLiveScoreScrapeUrl")}
-        ok={environment.scrape_url_configured}
-        detail={environment.default_scrape_url}
+        label={t("adminLiveScoreApiToken")}
+        ok={environment.football_data_api_configured}
+        detail={environment.default_competition_code}
       />
     </div>
   );
@@ -137,8 +137,10 @@ function TournamentStatusCard({
           </h3>
           <p className="mt-1 text-sm text-gray-600">
             {t(providerKey)}
-            {status.scores_url ? (
-              <span className="block truncate text-xs text-gray-500">{status.scores_url}</span>
+            {status.competition_code ? (
+              <span className="block truncate text-xs text-gray-500">
+                {status.competition_code}
+              </span>
             ) : null}
           </p>
         </div>
@@ -175,7 +177,7 @@ function TournamentStatusCard({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {onSync && status.live_score_provider === "scraping" && (
+        {onSync && status.live_score_provider === "football_data" && (
           <button
             type="button"
             className="btn-primary text-sm"

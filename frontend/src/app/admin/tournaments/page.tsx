@@ -40,8 +40,8 @@ const emptyForm = {
   qualifiers_per_group: 2,
   is_active: true,
   is_archived: false,
-  live_score_provider: "scraping",
-  live_score_scores_url: "",
+  live_score_provider: "football_data",
+  live_score_competition_code: "WC",
 };
 
 function teamEligibilityForCompetitionType(type: string) {
@@ -87,8 +87,8 @@ function applyCompetitionTypeDefaults(
     standing_rule_set_id: ruleset ? String(ruleset.id) : "",
     standing_rules: ruleset?.engine ?? current.standing_rules,
     qualifiers_per_group: ruleset?.qualifiers_per_group ?? current.qualifiers_per_group,
-    live_score_provider: isWorldCup ? "scraping" : "manual",
-    live_score_scores_url: "",
+    live_score_provider: isWorldCup ? "football_data" : "manual",
+    live_score_competition_code: isWorldCup ? "WC" : "",
   };
 }
 
@@ -124,9 +124,11 @@ export default function AdminTournamentsPage() {
   }, [load]);
 
   function tournamentPayload() {
-    const config: Record<string, string> = {};
-    if (form.live_score_provider === "scraping" && form.live_score_scores_url.trim()) {
-      config.scores_url = form.live_score_scores_url.trim();
+    const config: Record<string, string | number> = {};
+    if (form.live_score_provider === "football_data") {
+      const code = form.live_score_competition_code.trim().toUpperCase();
+      if (code) config.competition_code = code;
+      if (form.year) config.season = form.year;
     }
     const selectedRuleSet = ruleSets.find(
       (rules) => String(rules.id) === String(form.standing_rule_set_id)
@@ -229,7 +231,8 @@ export default function AdminTournamentsPage() {
       is_active: tournament.is_active ?? true,
       is_archived: tournament.is_archived ?? false,
       live_score_provider: tournament.live_score_provider || "manual",
-      live_score_scores_url: tournament.live_score_config?.scores_url || "",
+      live_score_competition_code:
+        tournament.live_score_config?.competition_code || "WC",
     });
   }
 
@@ -452,19 +455,23 @@ export default function AdminTournamentsPage() {
               onChange={(e) => setForm({ ...form, live_score_provider: e.target.value })}
             >
               <option value="manual">{t("adminLiveScoreManual")}</option>
-              <option value="scraping">{t("adminLiveScoreScraping")}</option>
+              <option value="football_data">{t("adminLiveScoreFootballData")}</option>
             </select>
             <p className="mt-1 text-xs text-gray-500">{t("adminLiveScoreConfigHint")}</p>
           </div>
-          {form.live_score_provider === "scraping" && (
+          {form.live_score_provider === "football_data" && (
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">{t("adminLiveScoreScoresUrl")}</label>
+              <label className="mb-1 block text-sm font-medium">
+                {t("adminLiveScoreCompetitionCode")}
+              </label>
               <input
                 className="input"
-                type="url"
-                value={form.live_score_scores_url}
-                onChange={(e) => setForm({ ...form, live_score_scores_url: e.target.value })}
-                placeholder="https://..."
+                type="text"
+                value={form.live_score_competition_code}
+                onChange={(e) =>
+                  setForm({ ...form, live_score_competition_code: e.target.value.toUpperCase() })
+                }
+                placeholder="WC"
               />
             </div>
           )}
@@ -554,7 +561,7 @@ export default function AdminTournamentsPage() {
               >
                 {tournament.is_active ? t("adminDeactivate") : t("adminActivate")}
               </button>
-              {tournament.live_score_provider === "scraping" && (
+              {tournament.live_score_provider === "football_data" && (
                 <button
                   type="button"
                   className="btn-secondary text-sm"

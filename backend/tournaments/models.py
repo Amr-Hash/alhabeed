@@ -72,7 +72,7 @@ class Tournament(models.Model):
 
     class LiveScoreProvider(models.TextChoices):
         MANUAL = "manual", "Manual (admin only)"
-        SCRAPING = "scraping", "Web scraping"
+        FOOTBALL_DATA = "football_data", "football-data.org"
 
     name = models.CharField(max_length=200)
     name_ar = models.CharField(max_length=200, blank=True, default="")
@@ -147,7 +147,7 @@ class Tournament(models.Model):
     live_score_config = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Provider settings such as scores_url for scraping.",
+        help_text="Provider settings such as competition_code for football-data.org.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

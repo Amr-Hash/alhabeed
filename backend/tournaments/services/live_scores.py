@@ -3,7 +3,7 @@ Live score ingestion for tournaments.
 
 Providers:
 - manual: admin enters live/final scores in the dashboard.
-- scraping: poll a public scores page (no API key).
+- football_data: poll football-data.org (https://www.football-data.org).
 
 Prediction points are only awarded when a match moves to FINISHED (see scoring.py).
 """
@@ -20,10 +20,12 @@ from django.utils import timezone
 
 from tournaments.models import Match, Tournament
 from tournaments.services.datetime_utils import ensure_aware_datetime
-from tournaments.services.score_scraper import (
-    fetch_scraped_scores,
-    find_scraped_score_for_match,
-    resolve_scores_url,
+from tournaments.services.football_data import (
+    fetch_competition_matches,
+    find_football_data_match_for_match,
+    resolve_api_token,
+    resolve_competition_code,
+    resolve_season,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,8 +106,8 @@ def sync_all_configured_tournaments() -> list[dict[str, Any]]:
 def sync_tournament_live_scores(tournament: Tournament) -> dict[str, Any]:
     if tournament.live_score_provider == Tournament.LiveScoreProvider.MANUAL:
         return {"updated": 0, "skipped": 0}
-    if tournament.live_score_provider == Tournament.LiveScoreProvider.SCRAPING:
-        return _sync_scraping(tournament)
+    if tournament.live_score_provider == Tournament.LiveScoreProvider.FOOTBALL_DATA:
+        return _sync_football_data(tournament)
     return {"updated": 0, "skipped": 0, "error": "unknown_provider"}
 
 
@@ -120,9 +122,13 @@ def _match_in_sync_window(match: Match, now: datetime) -> bool:
     return start <= now <= end
 
 
-def _sync_scraping(tournament: Tournament) -> dict[str, Any]:
+def _sync_football_data(tournament: Tournament) -> dict[str, Any]:
     config = tournament.live_score_config or {}
-    scores_url = resolve_scores_url(config)
+    if not resolve_api_token():
+        return {"updated": 0, "skipped": 0, "error": "missing_api_token"}
+
+    competition_code = resolve_competition_code(config)
+    season = resolve_season(config, tournament.year)
     now = timezone.now()
 
     try:
@@ -136,30 +142,41 @@ def _sync_scraping(tournament: Tournament) -> dict[str, Any]:
         if not active_matches:
             return {"updated": 0, "skipped": skipped}
 
-        scraped_rows = fetch_scraped_scores(scores_url)
-    except (requests.RequestException, ValueError) as exc:
-        logger.exception("Score scrape failed for tournament %s: %s", tournament.id, exc)
-        return {"updated": 0, "skipped": 0, "error": "scrape_failed"}
+        date_from, date_to = _fetch_date_bounds(active_matches)
+        api_matches = fetch_competition_matches(
+            competition_code=competition_code,
+            season=season,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except ValueError as exc:
+        if str(exc) == "missing_api_token":
+            return {"updated": 0, "skipped": 0, "error": "missing_api_token"}
+        logger.exception("Football-data config error for tournament %s: %s", tournament.id, exc)
+        return {"updated": 0, "skipped": 0, "error": "api_config_error"}
+    except requests.RequestException as exc:
+        logger.exception("Football-data fetch failed for tournament %s: %s", tournament.id, exc)
+        return {"updated": 0, "skipped": 0, "error": "api_fetch_failed"}
 
     updated = 0
     with transaction.atomic():
         for match in active_matches:
-            scraped = find_scraped_score_for_match(match, scraped_rows)
-            if not scraped:
+            external = find_football_data_match_for_match(match, api_matches)
+            if not external:
                 skipped += 1
                 continue
-            if scraped.home_score is None or scraped.away_score is None:
-                if scraped.status == Match.Status.SCHEDULED:
+            if external.home_score is None or external.away_score is None:
+                if external.status == Match.Status.SCHEDULED:
                     skipped += 1
                     continue
-                home_score = scraped.home_score if scraped.home_score is not None else 0
-                away_score = scraped.away_score if scraped.away_score is not None else 0
+                home_score = external.home_score if external.home_score is not None else 0
+                away_score = external.away_score if external.away_score is not None else 0
             else:
-                home_score = scraped.home_score
-                away_score = scraped.away_score
+                home_score = external.home_score
+                away_score = external.away_score
 
             winner_team_id = None
-            if scraped.status == Match.Status.FINISHED and match.is_knockout:
+            if external.status == Match.Status.FINISHED and match.is_knockout:
                 if home_score > away_score:
                     winner_team_id = match.home_team_id
                 elif away_score > home_score:
@@ -167,12 +184,29 @@ def _sync_scraping(tournament: Tournament) -> dict[str, Any]:
 
             apply_live_match_update(
                 match,
-                status=scraped.status,
+                status=external.status,
                 home_score=home_score,
                 away_score=away_score,
                 winner_team_id=winner_team_id,
-                finalize=scraped.status == Match.Status.FINISHED,
+                finalize=external.status == Match.Status.FINISHED,
             )
             updated += 1
 
-    return {"updated": updated, "skipped": skipped, "scraped_matches": len(scraped_rows)}
+    return {
+        "updated": updated,
+        "skipped": skipped,
+        "api_matches": len(api_matches),
+        "competition_code": competition_code,
+    }
+
+
+def _fetch_date_bounds(active_matches: list[Match]) -> tuple[date, date]:
+    kickoff_dates = [
+        ensure_aware_datetime(match.kickoff_time).date()
+        for match in active_matches
+        if match.kickoff_time
+    ]
+    if not kickoff_dates:
+        today = timezone.now().date()
+        return today, today
+    return min(kickoff_dates), max(kickoff_dates)

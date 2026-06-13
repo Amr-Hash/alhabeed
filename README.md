@@ -286,22 +286,23 @@ VERCEL_TOKEN=<token> node scripts/sync-vercel-ci-secret.mjs
 Pull requests run tests only — production deploys run from the **Deploy** workflow after CI passes on `main`.
 You can also trigger deploy manually from **Actions → Deploy → Run workflow**.
 
-### World Cup live score sync (web scraping)
+### World Cup live score sync (football-data.org)
 
-Live scores can be **manual** (admin enters results) or **scraping** (automatic from a public scores page). No API keys required.
+Live scores can be **manual** (admin enters results) or **football_data** (automatic from [football-data.org](https://www.football-data.org/)).
 
 Add these environment variables on the **alhabeed-api** Vercel project:
 
 | Variable | Purpose |
 |----------|---------|
 | `CRON_SECRET` | Random secret; cron jobs send `Authorization: Bearer …` |
-| `LIVE_SCORE_SCRAPE_URL` | Optional override for the default FIFA scores calendar URL |
+| `FOOTBALL_DATA_API_TOKEN` | API token from football-data.org (free tier available) |
+| `FOOTBALL_DATA_COMPETITION_CODE` | Optional default competition code (World Cup = `WC`) |
 | `LIVE_SCORE_SYNC_START` | Optional; ISO date e.g. `2026-06-11` |
 | `LIVE_SCORE_SYNC_END` | Optional; ISO date e.g. `2026-07-19` (full tournament) |
 
-**How it works:** The sync job runs every **15 minutes** via GitHub Actions. For each tournament set to **Web scraping**, it fetches the configured scores page and matches results to your fixtures by team name/code (15 min before kickoff → 3 hours after). **Match Reminders** runs every 5 minutes (push only).
+**How it works:** The sync job runs every **15 minutes** via GitHub Actions. For each tournament set to **football-data.org**, it fetches matches from the API and matches them to your fixtures by team code (15 min before kickoff → 3 hours after). When a match is **FINISHED** in the API, the score is saved and prediction points are awarded automatically.
 
-Per-tournament optional `scores_url` in admin overrides the server default. Admin can also use **Sync live scores now** on the tournaments page.
+Per-tournament optional `competition_code` in admin (defaults to `WC` for World Cup). Admin can also use **Sync live scores now** on the tournaments page.
 
 Live scores update match `status` and display scores; prediction points are awarded only when a match reaches `finished`.
 

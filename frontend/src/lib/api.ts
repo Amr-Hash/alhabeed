@@ -353,8 +353,8 @@ export interface LiveScoreEnvironment {
   sync_window_start: string | null;
   sync_window_end: string | null;
   cron_schedule: string;
-  default_scrape_url: string;
-  scrape_url_configured: boolean;
+  football_data_api_configured: boolean;
+  default_competition_code: string;
 }
 
 export interface LiveScoreMatchStats {
@@ -372,9 +372,9 @@ export interface TournamentLiveScoreStatus {
   year: number;
   is_active: boolean;
   is_archived: boolean;
-  live_score_provider: "manual" | "scraping";
-  live_score_config: { scores_url?: string };
-  scores_url?: string | null;
+  live_score_provider: "manual" | "football_data";
+  live_score_config: { competition_code?: string; season?: number };
+  competition_code?: string | null;
   health: "ready" | "warning" | "error" | "manual";
   issues: string[];
   matches: LiveScoreMatchStats;
@@ -422,8 +422,8 @@ export interface Tournament {
   qualifiers_per_group?: number;
   is_active?: boolean;
   is_archived?: boolean;
-  live_score_provider?: "manual" | "scraping";
-  live_score_config?: { scores_url?: string };
+  live_score_provider?: "manual" | "football_data";
+  live_score_config?: { competition_code?: string; season?: number };
   stage_count?: number;
   match_count?: number;
   is_subscribed?: boolean;

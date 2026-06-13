@@ -422,12 +422,12 @@ export function TournamentHub({ tournamentId }: { tournamentId: number }) {
               )}
               <span className="rounded-full bg-royal-50 px-2.5 py-1 font-medium text-royal-800">
                 {t("adminLiveScoreProvider")}:{" "}
-                {tournament.live_score_provider === "scraping"
-                  ? t("adminLiveScoreScraping")
+                {tournament.live_score_provider === "football_data"
+                  ? t("adminLiveScoreFootballData")
                   : t("adminLiveScoreManual")}
-                {tournament.live_score_config?.scores_url ? (
+                {tournament.live_score_config?.competition_code ? (
                   <span className="block truncate text-xs text-gray-500">
-                    {tournament.live_score_config.scores_url}
+                    {tournament.live_score_config.competition_code}
                   </span>
                 ) : null}
               </span>

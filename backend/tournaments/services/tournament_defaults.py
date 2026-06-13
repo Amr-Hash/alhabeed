@@ -29,8 +29,8 @@ def default_live_score_for_competition_type(
 ) -> tuple[str, dict]:
     if competition_type == StandingRuleSet.CompetitionType.WORLD_CUP:
         return (
-            Tournament.LiveScoreProvider.SCRAPING,
-            {},
+            Tournament.LiveScoreProvider.FOOTBALL_DATA,
+            {"competition_code": "WC"},
         )
     return Tournament.LiveScoreProvider.MANUAL, {}
 
