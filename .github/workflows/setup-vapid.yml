@@ -1,0 +1,51 @@
+name: Setup VAPID
+
+on:
+  workflow_dispatch:
+
+env:
+  VERCEL_ORG_ID: team_4Xmlf7t3YpurUX6c1nZH0ra0
+  VERCEL_BACKEND_PROJECT_ID: prj_FRxuskySw6XocyTyrftLpgZw2baf
+
+jobs:
+  setup-vapid:
+    name: Configure Web Push on Vercel
+    runs-on: ubuntu-latest
+    environment:
+      name: production-backend
+      url: https://alhabeed-api.vercel.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate Vercel token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
+          VERCEL_TEAM_SLUG: amr-hashem
+        run: bash .github/scripts/vercel-validate-token.sh
+
+      - name: Set VAPID keys and redeploy API
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VAPID_ADMIN_EMAIL: noreply@alhabeed.com
+        run: node scripts/setup-vapid-vercel.mjs
+
+      - name: Verify push is configured
+        run: |
+          for i in $(seq 1 12); do
+            resp=$(curl -fsS https://alhabeed-api.vercel.app/api/notifications/push/vapid-public-key)
+            echo "$resp"
+            if echo "$resp" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('configured') and d.get('public_key') else 1)"; then
+              echo "Web Push is configured on production."
+              exit 0
+            fi
+            echo "Waiting for production to pick up env vars (attempt ${i}/12)..."
+            sleep 10
+          done
+          echo "Push still not configured after redeploy."
+          exit 1
