@@ -95,7 +95,16 @@ console.log("Redeploying backend so env vars take effect...");
 const deploy = spawnSync(
   "npx",
   ["--yes", "vercel@latest", "deploy", "--prod", "--yes", "--token", token],
-  { cwd: join(process.cwd(), "backend"), encoding: "utf8", shell: true }
+  {
+    cwd: join(process.cwd(), "backend"),
+    encoding: "utf8",
+    shell: true,
+    env: {
+      ...process.env,
+      VERCEL_ORG_ID: TEAM_ID,
+      VERCEL_PROJECT_ID: PROJECT_ID,
+    },
+  }
 );
 if (deploy.status !== 0) {
   console.error(deploy.stdout);
