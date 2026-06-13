@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
+from unittest.mock import patch
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -806,15 +807,21 @@ class NotificationTests(TestCase):
         self.user_client.force_authenticate(user=self.user)
 
     def test_match_finish_creates_match_result_notification(self):
-        response = self.admin_client.patch(
-            f"/api/tournaments/admin/matches/{self.match.id}",
-            {
-                "status": Match.Status.FINISHED,
-                "home_score": 2,
-                "away_score": 1,
-            },
-            format="json",
-        )
+        with (
+            patch("predictions.services.notifications.push_configured", return_value=True),
+            patch(
+                "predictions.services.notifications.send_push_to_user", return_value=1
+            ) as mock_push,
+        ):
+            response = self.admin_client.patch(
+                f"/api/tournaments/admin/matches/{self.match.id}",
+                {
+                    "status": Match.Status.FINISHED,
+                    "home_score": 2,
+                    "away_score": 1,
+                },
+                format="json",
+            )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         from notifications.models import Notification
@@ -827,17 +834,31 @@ class NotificationTests(TestCase):
         self.assertEqual(notification.payload["points_awarded"], 5)
         self.assertEqual(notification.payload["home_score"], 2)
         self.assertEqual(notification.payload["global_rank"], 1)
+        self.assertGreaterEqual(mock_push.call_count, 1)
+        match_push = next(
+            call
+            for call in mock_push.call_args_list
+            if call.kwargs.get("url") == f"/matches/{self.match.id}"
+            and "pts" in call.kwargs.get("body", "")
+        )
+        self.assertIn("Home", match_push.kwargs["title"])
 
     def test_podium_change_notifies_all_group_members(self):
-        self.admin_client.patch(
-            f"/api/tournaments/admin/matches/{self.match.id}",
-            {
-                "status": Match.Status.FINISHED,
-                "home_score": 2,
-                "away_score": 1,
-            },
-            format="json",
-        )
+        with (
+            patch("predictions.services.notifications.push_configured", return_value=True),
+            patch(
+                "predictions.services.notifications.send_push_to_user", return_value=1
+            ) as mock_push,
+        ):
+            self.admin_client.patch(
+                f"/api/tournaments/admin/matches/{self.match.id}",
+                {
+                    "status": Match.Status.FINISHED,
+                    "home_score": 2,
+                    "away_score": 1,
+                },
+                format="json",
+            )
 
         from notifications.models import Notification
 
@@ -849,6 +870,30 @@ class NotificationTests(TestCase):
         self.assertTrue(
             podium_notifications.filter(user=self.spectator).exists()
         )
+        self.assertGreaterEqual(mock_push.call_count, 3)
+
+    def test_scoring_push_not_sent_when_notification_already_exists(self):
+        from notifications.models import Notification
+
+        Notification.objects.create(
+            user=self.user,
+            notification_type=Notification.Type.MATCH_RESULT,
+            dedup_key=f"match_result:{self.match.id}",
+            payload={"match_id": self.match.id},
+        )
+        with patch(
+            "predictions.services.notifications.send_push_to_user", return_value=1
+        ) as mock_push:
+            self.admin_client.patch(
+                f"/api/tournaments/admin/matches/{self.match.id}",
+                {
+                    "status": Match.Status.FINISHED,
+                    "home_score": 2,
+                    "away_score": 1,
+                },
+                format="json",
+            )
+        mock_push.assert_not_called()
 
     def test_notification_mark_read_and_mark_all(self):
         self.admin_client.patch(

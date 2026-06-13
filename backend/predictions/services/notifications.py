@@ -1,5 +1,7 @@
 from groups.models import GroupMember
 from notifications.models import Notification
+from notifications.services.push import push_configured, send_push_to_user
+from notifications.services.push_copy import group_podium_push_copy, match_result_push_copy
 from predictions.services.leaderboard import (
     capture_tournament_podiums,
     global_rank_map,
@@ -62,6 +64,41 @@ def _upsert_notification(user_id, notification_type, dedup_key, payload, mark_un
     return notification, created
 
 
+def _maybe_send_scoring_push(
+    user_id: int,
+    notification_type: str,
+    payload: dict,
+    *,
+    created: bool,
+) -> None:
+    if not created or not push_configured():
+        return
+
+    match_id = payload.get("match_id")
+    url = f"/matches/{match_id}" if match_id else "/dashboard"
+
+    if notification_type == Notification.Type.MATCH_RESULT:
+        title, body = match_result_push_copy(payload)
+    elif notification_type == Notification.Type.GROUP_PODIUM:
+        title, body = group_podium_push_copy(payload)
+    else:
+        return
+
+    send_push_to_user(user_id, title=title, body=body, url=url)
+
+
+def _notify_user(user_id, notification_type, dedup_key, payload, mark_unread=False):
+    notification, created = _upsert_notification(
+        user_id,
+        notification_type,
+        dedup_key,
+        payload,
+        mark_unread=mark_unread,
+    )
+    _maybe_send_scoring_push(user_id, notification_type, payload, created=created)
+    return notification, created
+
+
 def process_match_scoring_notifications(
     match,
     scoring_results,
@@ -107,7 +144,7 @@ def process_match_scoring_notifications(
             after_global_ranks,
             group_changes,
         )
-        _upsert_notification(
+        _notify_user(
             user_id,
             Notification.Type.MATCH_RESULT,
             f"match_result:{match.id}",
@@ -145,7 +182,7 @@ def process_match_scoring_notifications(
         for member_id in member_ids:
             if member_id not in subscribed_user_ids:
                 continue
-            _upsert_notification(
+            _notify_user(
                 member_id,
                 Notification.Type.GROUP_PODIUM,
                 dedup_key,
